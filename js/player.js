@@ -126,10 +126,10 @@ class Player {
 
     ctx.save();
     if (this.moving) {
-      // walk cycle frames (art faces left natively — mirror for right)
+      // walk cycle frames (art faces right natively — mirror for left)
       const order = [0, 1, 2, 3];
       const img = PrinceSprites.walk[order[Math.floor(this.phase * 0.9) % order.length]];
-      if (this.facing > 0) ctx.scale(-1, 1);
+      if (this.facing < 0) ctx.scale(-1, 1);
       ctx.translate(0, -Math.abs(Math.sin(this.phase)) * 1.2);
       const k = (TARGET_H * s) / img.height;
       ctx.drawImage(img, -(img.width * k) / 2, -TARGET_H * s, img.width * k, TARGET_H * s);
