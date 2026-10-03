@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prince of Lahore — a small, comfortable adventure</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="640" height="480"></canvas>
+</div>
+<div id="music-ui">
+  <button id="music-toggle" title="Music on/off (M)">&#9834; off</button>
+  <div id="music-dropdown">
+    <button id="music-current" title="Choose the music">Auto &#9662;</button>
+    <div id="music-menu"></div>
+  </div>
+</div>
+
+<!-- Classic scripts (no modules) so the game runs straight from file:// -->
+<script src="js/audio.js"></script>
+<script src="js/player.js"></script>
+<script src="js/speech.js"></script>
+<script src="js/dialogue.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

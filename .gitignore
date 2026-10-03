@@ -1,0 +1,12 @@
+# Local Netlify state (machine-specific siteId, generated netlify.toml)
+.netlify
+
+# macOS
+.DS_Store
+
+# Tooling / planning session state (remove this line if you want to track plans)
+.zcode
+
+# Python dev server
+__pycache__/
+*.pyc

@@ -1,0 +1,8 @@
+# Netlify site config — tracked in git so a fresh clone deploys identically.
+# The Netlify CLI's local state (site link, generated files) lives in the
+# gitignored .netlify/ directory instead.
+
+[build]
+  # The game is plain static files — no build step, no framework preset.
+  # Serve the repository root (index.html lives there).
+  publish = "."
