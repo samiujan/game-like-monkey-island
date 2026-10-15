@@ -24,9 +24,10 @@ canvas#game {
   width: min(100vw, calc(100dvh * 4 / 3));
   height: auto;
   touch-action: manipulation;
-  /* SVGA aesthetic: render at 640x480, upscale without smoothing */
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
+  /* Hand-painted watercolour art: let the browser upscale smoothly. Nearest
+     neighbour ('pixelated') turns every sprite edge into stair-steps and makes
+     the anti-aliased sprite silhouettes look ragged. */
+  image-rendering: auto;
   cursor: none;
   outline: none;
 }
