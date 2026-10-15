@@ -301,7 +301,10 @@ const Dialogue = (() => {
     if (f.metMonkeys) return node(
       '(The monkeys are still sitting on the only ripe mango. They are still unimpressed.)',
       [
-        { text: 'What DO you want?', respond: ['(The smallest monkey points at the terrace and touches its own ear.)', '(It mimes something long, blue and showy. Then it resumes napping.)'] },
+        { text: 'What DO you want?', respond: [
+          '(The smallest monkey points at the terrace and touches its own ear.)',
+          '(It mimes something long, blue and showy.)',
+          '(The mango is not for sale. The mango is for a feather.)'] },
         { text: 'We will speak later.', end: true }
       ]);
     return node(

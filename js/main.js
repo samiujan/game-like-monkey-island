@@ -112,7 +112,40 @@ function drawTitle(ctx, t) {
 function drawCursor() {
   const h = Input.hover;
   const x = Input.mx, y = Input.my;
+  const held = Inventory.held;
   ctx.save();
+
+  // An item in hand becomes the cursor: what you are carrying is drawn at the
+  // pointer, and the target reticle rings it so you can see it will be used.
+  if (held) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(28,16,6,0.62)';
+    ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = h.type === 'hotspot' ? '#f2c14e' : 'rgba(232,217,176,0.7)';
+    ctx.lineWidth = h.type === 'hotspot' ? 2 : 1.2;
+    ctx.stroke();
+    Inventory.items[held].icon(ctx, 0, 1);
+    ctx.restore();
+    if (h.type === 'hotspot') {
+      ctx.strokeStyle = 'rgba(242,193,78,0.85)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(x, y, 24 + Math.sin(Game.t * 4) * 1.6, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (h.type === 'exit') {
+      const dir = h.ref.side === 'left' ? -1 : 1;
+      ctx.fillStyle = '#f2c14e';
+      ctx.beginPath();
+      ctx.moveTo(x + 26 * dir, y);
+      ctx.lineTo(x + 16 * dir, y - 6);
+      ctx.lineTo(x + 16 * dir, y + 6);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
   if (h.type === 'hotspot') {
     ctx.strokeStyle = '#f2c14e';
     ctx.lineWidth = 1.6;
