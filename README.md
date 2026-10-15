@@ -39,6 +39,8 @@ python3 server.py
 | Action | Input |
 | --- | --- |
 | Walk | Click anywhere on the ground |
+| **Run** | **Double-click** — he sets off at twice the speed |
+| Leave the scene | Click **anywhere along the left or right edge** |
 | Examine something | Hover (see the label), then click the hotspot |
 | Talk to someone | Click the character |
 | Pick something up | Click the pick-up hotspot |
@@ -50,9 +52,13 @@ python3 server.py
 | Music on/off | `M`, or the ♪ button top-right |
 | Pick a music track | The **Auto ▾** menu top-right |
 
-An item in hand sits proud of the others with a gold border, and the status line
-turns gold to remind you what you are holding. Clicking the wrong thing on the
-wrong thing is allowed — and answered.
+An item in hand sits proud of the others with a gold border, and **the item
+itself becomes the pointer** — ringed in gold when the thing under it will
+accept it, with an arrow when that thing is an exit. Clicking the wrong thing on
+the wrong thing is allowed, and answered.
+
+A whole exchange is printed at once rather than a line at a time, so you can
+read a three-line mime in one go.
 
 The cursor tells you what will happen:
 
@@ -92,29 +98,33 @@ palace peacock (he judges you, kindly), and a tea table set for two. Exit
 
 ### 4. The Shahi Bawarchi Khana — *the fort kitchens*
 A great hearth, copper pots hanging from the beams, two shelves of spice jars,
-a long scrubbed prep table, and **Ustad Bawarchi**, who is not pleased to see
-you. Exit **right** to the gate.
+a long scrubbed prep table with **the big copper teapot** on it, and **Ustad
+Bawarchi**, who is not pleased to see you. Exit **right** to the gate.
 
 ---
 
 ## The puzzle *(spoilers — read only if you're stuck)*
 
-One job, four dependent steps, and one trick worth knowing.
+One job, a chain of swaps, and one trick worth knowing.
 
 1. **Hazuri Bagh.** Talk to **Chacha Bagh** and ask *"Is everything well,
    chacha?"* He longs for cardamom tea and has neither a pot nor the spice: the
-   teapot of the marble terrace never runs dry, and the cardamom belongs to the
+   great copper teapot lives in the kitchens, and the cardamom belongs to the
    cook.
-2. **The kitchens.** **Ustad Bawarchi** will not part with the cardamom for
-   coin — *"Coin does not sweeten a dish, Prince. Fruit does."* He wants a ripe
-   mango.
+2. **The kitchens.** The **teapot** is on the long prep table — take it. Then
+   talk to **Ustad Bawarchi**, who will not part with the cardamom for coin:
+   *"Coin does not sweeten a dish, Prince. Fruit does."* He wants a ripe mango.
 3. **The monkeys.** The only ripe mango in the fort is guarded by the monkeys of
    Hazuri Bagh. They do not sell. They **trade** — and what they want is a
    peacock's tail feather.
-4. **The terrace, and the trick.** The peacock will not give up a feather while
-   he is watching. But the teapot is *polished to a mirror shine* — **pick up
-   the teapot and use it on the peacock**. He catches sight of himself, turns to
-   check the hall of mirrors, and a feather drifts loose while he is busy.
+4. **The terrace, and the trick — two steps, not one.** The peacock will not
+   give up a feather while he is watching. Holding the mirror-polished teapot up
+   to him is *not enough on its own*: vanity is not curiosity, and he has never
+   once needed to look at himself. **Talk to him first and plant the doubt** —
+   ask *"Have you looked at yourself lately?"* Now he wants to see, and has
+   nothing to see himself in. *Then* use the teapot on him: he catches his own
+   reflection, turns to check the hall of mirrors, and a feather drifts loose
+   while he is busy.
 
 Then follow the chain back: **feather → monkeys → mango → cook → cardamom**,
 and finally take the pot and the spice to the gardener. Choose *"Both. Shall I
@@ -253,7 +263,9 @@ The CLI's local state lives in the gitignored `.netlify/`.
 **In the game today:** four connected scenes staged in Monkey Island-style
 perspective — a trapezoid floor receding to a vanishing point, characters that
 scale with distance, correct occlusion behind mid-ground props, and foreground
-framing that crops the corners. Plus click-to-walk with **obstacle avoidance**, a
+framing that crops the corners. Plus click-to-walk with **A\* pathfinding**
+(the Prince routes himself around props), double-click to run, a whole-edge
+doorway on each side, a
 **"use X on Y" verb** with item selection, a two-item satchel, **three NPCs with
 branching dialogue**, and one complete puzzle with a real trick in it: *A Feather
 for a Mango*. Five characters are fully sprite-based — the Prince, Chacha Bagh,
@@ -265,8 +277,8 @@ catches his own reflection. Three procedural music tracks auto-switch by scene.
 - The Prince has 5 walk frames and Chacha Bagh only one pose, so **no NPC has a
   walk cycle** — the sheets have full cycles for everyone, they just aren't wired
   up yet.
-- Obstacle avoidance is one dog-leg around one rectangle, not real pathfinding.
-  It handles the props the fort has; a maze would defeat it.
+- The pathfinder plans around the props but does not *understand* them — a prop
+  the Prince should walk behind rather than around has to be left unblocked.
 - The four scenes are hand-painted backgrounds, so moving a prop means repainting
   its surroundings rather than moving a sprite.
 
