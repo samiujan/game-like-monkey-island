@@ -44,7 +44,7 @@ class Player {
   }
 
   scaleAt(scene, y) {
-    return 1; // horizontal world: the prince stays one size
+    return scene.depth(y); // perspective: far up the floor = smaller
   }
 
   update(dt, scene) {
@@ -67,9 +67,9 @@ class Player {
     const step = speed * dt;
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
-    const w = scene.walk;
-    this.x = Math.max(w.x, Math.min(w.x + w.w, this.x));
-    this.y = Math.max(w.y, Math.min(w.y + w.h, this.y));
+    // keep him on the trapezoid, not merely inside a rectangle
+    const c = scene.clamp(this.x, this.y);
+    this.x = c.x; this.y = c.y;
     this.phase += step * 0.105;
   }
 
@@ -118,10 +118,10 @@ class Player {
     ctx.save();
     ctx.translate(this.x, this.y);
 
-    // soft shadow
+    // soft shadow — shrinks with him as he walks away
     ctx.fillStyle = 'rgba(60,30,10,0.22)';
     ctx.beginPath();
-    ctx.ellipse(0, 1, 20, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 1, 20 * s, 5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.save();
@@ -151,4 +151,6 @@ class Player {
   }
 }
 
-const TARGET_H = 112;
+// Height of the prince at depth scale 1. Monkey Island proportions: roughly a
+// third of the 480px frame.
+const TARGET_H = 150;

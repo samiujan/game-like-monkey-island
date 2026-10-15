@@ -24,24 +24,63 @@ const Scenes = (() => {
     };
   }
 
-  // the shared horizontal walking band
-  const WALK = { x: 12, y: 396, w: 616, h: 66 };
+  // ------------------------------------------------------------ the ground
+  // The walkable floor is a trapezoid, not a flat band: a far edge up near the
+  // back wall and a near edge at the bottom of the frame. Everything about
+  // perspective hangs off this — clamp() keeps the prince on the floor, and
+  // depth(y) is the ramp that scales him (and anything else) with distance.
+  const GROUND = {
+    far:  { y: 302, x0: 130, x1: 510 },
+    near: { y: 476, x0: -40, x1: 680 }
+  };
+  const SCALE_FAR = 0.72;   // at the far edge — a small figure by the wall
+  const SCALE_NEAR = 1.20;  // at the near edge — close to the camera
 
-  function makeScene(id, name) {
+  function makeScene(id, name, ground) {
+    const G = ground || GROUND;
+    const t01 = (y) => Math.max(0, Math.min(1, (y - G.far.y) / (G.near.y - G.far.y)));
+    // the left/right bounds of the floor at a given depth
+    function span(y) {
+      const t = t01(y);
+      return {
+        x0: G.far.x0 + (G.near.x0 - G.far.x0) * t,
+        x1: G.far.x1 + (G.near.x1 - G.far.x1) * t
+      };
+    }
     return {
       id, name,
-      walk: WALK,
+      ground: G,
+      span,
       blocked: [],
       clamp(x, y) {
-        return {
-          x: Math.max(WALK.x, Math.min(WALK.x + WALK.w, x)),
-          y: Math.max(WALK.y, Math.min(WALK.y + WALK.h, y))
-        };
+        const cy = Math.max(G.far.y, Math.min(G.near.y, y));
+        const s = span(cy);
+        return { x: Math.max(s.x0, Math.min(s.x1, x)), y: cy };
       },
       depth(y) {
-        return 0.9 + 0.3 * Math.max(0, Math.min(1, (y - WALK.y) / WALK.h));
+        return SCALE_FAR + (SCALE_NEAR - SCALE_FAR) * t01(y);
       }
     };
+  }
+
+  // The fan of paving joints that makes a floor read as receding: lines through
+  // a vanishing point on the horizon, crossed by rows that crowd together as
+  // they approach it.
+  function paving(ctx, vpx, vpy, rowYs, lineAlpha, rowAlpha) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(120,74,42,${lineAlpha})`;
+    ctx.lineWidth = 1;
+    for (let bx = -300; bx <= 940; bx += 74) {
+      ctx.beginPath();
+      ctx.moveTo(vpx, vpy);
+      ctx.lineTo(bx, 480);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = `rgba(120,74,42,${rowAlpha})`;
+    for (const ry of rowYs) {
+      ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(640, ry); ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------- helpers
@@ -384,15 +423,21 @@ const Scenes = (() => {
     ctx.beginPath(); ctx.arc(x, y, 10 + Math.sin(t * 2.4) * 2, 0, Math.PI * 2); ctx.stroke();
   }
 
-  // Chacha Bagh: sprite only — nothing draws until his sheet has arrived
-  function drawGardenerChar(ctx, t) {
+  // Chacha Bagh: sprite only — nothing draws until his sheet has arrived.
+  // baseY is where his feet rest on the floor; s is the depth scale there.
+  function drawGardenerChar(ctx, t, baseY, s) {
     if (!GardenerSprites.loaded) return;
-    const TARGET_H = 100;
+    const TARGET_H = 134 * s;
     const img = GardenerSprites.img;
     const k = TARGET_H / img.height;
     const w = img.width * k, h = img.height * k;
     ctx.save();
-    ctx.translate(206, 384);
+    ctx.translate(206, baseY);
+    // soft shadow, matched to the prince's
+    ctx.fillStyle = 'rgba(30,60,24,0.20)';
+    ctx.beginPath();
+    ctx.ellipse(0, 1, 20 * s, 5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
     const breathe = 1 + Math.sin(t * 1.4) * 0.006;
     ctx.scale(1, breathe);
     ctx.drawImage(img, -w / 2, -h, w, h);
@@ -405,24 +450,24 @@ const Scenes = (() => {
     const rnd = mulberry32(11);
     const scene = makeScene('gate', 'The Alamgiri Gate');
     scene.exits = [
-      { x: 545, y: 396, w: 95, h: 84, side: 'right', target: 'garden', spawn: { x: 75, y: 445 }, label: 'the Hazuri Bagh gardens' }
+      { x: 552, y: 312, w: 88, h: 164, side: 'right', target: 'garden', spawn: { x: 78, y: 448 }, label: 'the Hazuri Bagh gardens' }
     ];
     scene.hotspots = [
-      { x: 492, y: 282, w: 116, h: 130, label: 'the great wooden doors', lines: [
+      { x: 500, y: 150, w: 134, h: 152, label: 'the great wooden doors', lines: [
         'The doors are open, but the gatekeeper insists everyone must still knock. Tradition.'] },
-      { x: 60, y: 170, w: 300, h: 120, label: 'the sandstone wall', lines: [
+      { x: 40, y: 168, w: 330, h: 134, label: 'the sandstone wall', lines: [
         'Warm, golden sandstone. As a prince, you may NOT carve your name into it.',
         'Your grandfather is still upset about the last time.'] },
-      { x: 0, y: 392, w: 72, h: 88, label: 'the outer gates', lines: [
+      { x: 24, y: 196, w: 96, h: 106, label: 'the outer gates', lines: [
         'Closed since breakfast. The world outside can wait — the fort is quite enough for today.'] },
-      { x: 470, y: 132, w: 150, h: 140, label: 'the marble pavilion', lines: [
+      { x: 498, y: 56, w: 116, h: 84, label: 'the marble pavilion', lines: [
         'The royal pavilion watches over the gate. Best view of the courtyard, worst chairs.'] },
-      { x: 528, y: 60, w: 80, h: 60, label: 'the pennant', lines: [
+      { x: 522, y: 4, w: 96, h: 58, label: 'the pennant', lines: [
         'The royal standard, fluttering its approval of this fine morning.'] }
     ];
     scene.props = [
-      { y: 302, draw: (c, t) => potPlant(c, mulberry32(21), 500, 302, 0.9, t) },
-      { y: 302, draw: (c, t) => potPlant(c, mulberry32(45), 632, 302, 0.9, t) }
+      { y: 318, draw: (c, t) => potPlant(c, mulberry32(21), 486, 318, 1.2 * scene.depth(318), t) },
+      { y: 322, draw: (c, t) => potPlant(c, mulberry32(45), 626, 322, 1.2 * scene.depth(322), t) }
     ];
     scene.drawBg = function (ctx, t) {
       const g = ctx.createLinearGradient(0, 0, 0, 320);
@@ -433,25 +478,35 @@ const Scenes = (() => {
         const bx = (b.x + t * b.v) % 700 - 30;
         bird(ctx, bx, b.y + Math.sin(t + b.ph) * 3, b.s);
       }
-      // ground, then the straight court
-      const gg = ctx.createLinearGradient(0, 240, 0, 480);
-      gg.addColorStop(0, '#b97f4e'); gg.addColorStop(1, '#d9b98a');
-      ctx.fillStyle = gg; ctx.fillRect(0, 240, 640, 240);
-      const cg = ctx.createLinearGradient(0, 396, 0, 480);
-      cg.addColorStop(0, '#e8cda0'); cg.addColorStop(1, '#c9a878');
-      ctx.fillStyle = cg; ctx.fillRect(0, 396, 640, 84);
-      ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(0, 397); ctx.lineTo(640, 397); ctx.stroke();
-      ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(122,74,40,0.4)';
-      for (let i = 0; i < 12; i++) {
-        const sx = 16 + i * 52;
-        ctx.beginPath(); ctx.moveTo(sx, 402); ctx.lineTo(sx + 22, 478); ctx.stroke();
-      }
+      // ---- the courtyard floor: a receding plane running down from the wall ----
+      const HORIZON = 302, VPX = 320;
+      const fgr = ctx.createLinearGradient(0, HORIZON, 0, 480);
+      fgr.addColorStop(0, '#c1926a'); fgr.addColorStop(0.22, '#d8b489');
+      fgr.addColorStop(0.62, '#e8cda0'); fgr.addColorStop(1, '#cfa87a');
+      ctx.fillStyle = fgr; ctx.fillRect(0, HORIZON, 640, 480 - HORIZON);
+      // joints fan out from a vanishing point; rows crowd together toward it
+      paving(ctx, VPX, HORIZON, [303, 312, 324, 340, 360, 386, 418, 456, 478], 0.15, 0.24);
+      // the wall's shadow pooling at its base — this is what sells the depth
+      const sg2 = ctx.createLinearGradient(0, HORIZON, 0, 344);
+      sg2.addColorStop(0, 'rgba(72,36,14,0.34)');
+      sg2.addColorStop(1, 'rgba(72,36,14,0)');
+      ctx.fillStyle = sg2; ctx.fillRect(0, HORIZON, 640, 42);
       // sandstone wall across the top, gate tower at the right end
       stoneWall(ctx, mulberry32(31), 0, 150, 500, 152, '#c98d5a', '#a96b3c');
       kangura(ctx, 0, 142, 500, '#b97f4e');
       chhatri(ctx, 150, 152, 0.9);
       chhatri(ctx, 330, 152, 0.9);
+      // the outer doors, shut, at the left end of the wall
+      ctx.fillStyle = '#6b4423';
+      pointedArch(ctx, 72, 302, 88, 112); ctx.fill();
+      ctx.fillStyle = '#4a2c18';
+      pointedArch(ctx, 72, 302, 76, 102); ctx.fill();
+      ctx.fillStyle = 'rgba(28,16,6,0.6)';
+      ctx.fillRect(70, 204, 4, 98);
+      ctx.fillStyle = '#d4a017';
+      for (const [dx3, dy3] of [[56, 246], [62, 266], [82, 246], [88, 266]]) {
+        ctx.beginPath(); ctx.arc(dx3, dy3, 1.7, 0, Math.PI * 2); ctx.fill();
+      }
       // gate tower
       stoneWall(ctx, mulberry32(51), 470, 140, 170, 162, '#c98d5a', '#a96b3c');
       kangura(ctx, 470, 132, 170, '#b97f4e');
@@ -496,14 +551,19 @@ const Scenes = (() => {
       for (const [dx2, dy2] of [[539, 212], [539, 232], [539, 252], [592, 202], [592, 222], [592, 242], [592, 262]]) {
         ctx.beginPath(); ctx.arc(dx2, dy2, 1.7, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.fillStyle = 'rgba(96,54,22,0.35)';
-      ctx.fillRect(0, 302, 640, 6);
+      // grass sprouting through the paving, sized by how far away it is
       const r2 = mulberry32(77);
-      for (let i = 0; i < 8; i++) grassTuft(ctx, r2, 30 + r2() * 580, 308 + r2() * 6, 5 + r2() * 5);
-      exitGlow(ctx, 592, 438, t);
+      for (let i = 0; i < 16; i++) {
+        const gy = 312 + r2() * 158;
+        grassTuft(ctx, r2, r2() * 640, gy, (4 + r2() * 5) * scene.depth(gy));
+      }
+      exitGlow(ctx, 600, 432, t);
     };
     scene.drawFg = function (ctx, t) {
+      // framing: foliage cropping the corners, as in the reference shots
       fgFoliage(ctx, mulberry32(911), 14, -8, 62);
+      fgFoliage(ctx, mulberry32(913), -14, 502, 76);
+      fgFoliage(ctx, mulberry32(917), 650, 508, 80);
     };
     return scene;
   })();
@@ -512,139 +572,192 @@ const Scenes = (() => {
   const garden = (() => {
     const rnd = mulberry32(101);
     const fcols = ['#e86a8a', '#f2c14e', '#f0f0f7', '#e8845a'];
-    const scene = makeScene('garden', 'Hazuri Bagh');
+    const scene = makeScene('garden', 'Hazuri Bagh', {
+      far:  { y: 300, x0: 90, x1: 550 },
+      near: { y: 478, x0: -60, x1: 700 }
+    });
+
+    // a flowerbed: a low mound of flowers, sized by how far up the lawn it sits
+    function flowerbed(c, seed, cx, cy, w) {
+      const s = scene.depth(cy);
+      c.save();
+      c.translate(cx, cy);
+      c.scale(s, s);
+      c.fillStyle = '#3a6b45';
+      blob(c, mulberry32(seed), 0, 0, w, 14, 0.4); c.fill();
+      c.fillStyle = '#5d9a4e';
+      blob(c, mulberry32(seed + 1), 0, -3, w - 10, 10, 0.4); c.fill();
+      flowerDots(c, mulberry32(seed + 2), -w + 12, -12, (w - 12) * 2, 20, Math.round(w * 0.22), fcols);
+      c.restore();
+    }
+
     scene.exits = [
-      { x: 0, y: 380, w: 42, h: 100, side: 'left', target: 'gate', spawn: { x: 500, y: 436 }, label: 'the Alamgiri Gate' },
-      { x: 598, y: 380, w: 42, h: 100, side: 'right', target: 'terrace', spawn: { x: 75, y: 440 }, label: 'the marble terrace' }
+      { x: 0, y: 336, w: 46, h: 142, side: 'left', target: 'gate', spawn: { x: 500, y: 436 }, label: 'the Alamgiri Gate' },
+      { x: 594, y: 336, w: 46, h: 142, side: 'right', target: 'terrace', spawn: { x: 78, y: 442 }, label: 'the marble terrace' }
     ];
     scene.hotspots = [
-      { x: 168, y: 312, w: 78, h: 78, label: 'the old gardener', talk: true, npc: 'gardener' },
-      { x: 248, y: 286, w: 150, h: 60, label: 'the fountain', lines: [
+      { x: 162, y: 242, w: 88, h: 136, label: 'the old gardener', talk: true, npc: 'gardener' },
+      { x: 230, y: 308, w: 200, h: 68, label: 'the fountain', lines: [
         'The fountain insists on dancing, even when nobody is watching. Respect.'] },
-      { x: 440, y: 262, w: 130, h: 110, label: 'the mango tree', lines: [
+      { x: 442, y: 226, w: 108, h: 168, label: 'the mango tree', lines: [
         'Not ripe yet. The fort monkeys follow a very strict schedule.'] },
-      { x: 30, y: 140, w: 190, h: 90, label: 'the marble pavilion', lines: [
+      { x: 30, y: 126, w: 200, h: 96, label: 'the marble pavilion', lines: [
         'The white pavilion. Perfect for afternoon daydreams, of which you have many.'] },
-      { x: 66, y: 328, w: 140, h: 46, label: 'the flowerbeds', lines: [
+      { x: 62, y: 424, w: 180, h: 42, label: 'the flowerbeds', lines: [
         'Marigolds, roses, and one extremely proud sunflower.'] },
-      { x: 290, y: 118, w: 120, h: 60, label: 'a butterfly', lines: [
+      { x: 286, y: 116, w: 128, h: 62, label: 'a butterfly', lines: [
         'Even the butterflies are on holiday today.'] }
     ];
     scene.props = [
-      { y: 384, draw: (c, t) => drawGardenerChar(c, t) },
-      { y: 396, draw: (c, t) => {
-        // mango tree at the right side
-        const sway = Math.sin(t * 0.9) * 2;
-        c.strokeStyle = '#6b4423'; c.lineWidth = 6;
-        c.beginPath(); c.moveTo(505, 392); c.quadraticCurveTo(495, 350, 503, 316); c.stroke();
-        c.lineWidth = 3.5;
-        c.beginPath(); c.moveTo(503, 330); c.quadraticCurveTo(482, 322, 472, 314); c.stroke();
-        canopy(c, mulberry32(303), 496 + sway, 292, 40, sway);
-        c.fillStyle = '#f2a03d';
-        for (const [mx, my] of [[474, 318], [492, 322], [514, 314], [524, 304], [488, 300]]) {
-          c.beginPath(); c.ellipse(mx, my, 2.6, 3.5, 0.4, 0, Math.PI * 2); c.fill();
+      { y: 374, draw: (c, t) => drawGardenerChar(c, t, 374, scene.depth(374)) },
+      { y: 336, draw: (c, t) => flowerbed(c, 61, 430, 336, 74) },
+      { y: 446, draw: (c, t) => flowerbed(c, 65, 152, 446, 84) },
+      { y: 372, draw: (c, t) => {
+        // the marble fountain tank, drawn from its own base at the origin
+        const s = scene.depth(372) * 1.3;
+        c.save();
+        c.translate(330, 372);
+        c.scale(s, s);
+        c.fillStyle = '#e8e0cc';
+        rr(c, -74, -44, 148, 44, 8); c.fill();
+        c.fillStyle = '#f4efe0';
+        rr(c, -80, -50, 160, 13, 6); c.fill();
+        const wg = c.createLinearGradient(0, -38, 0, -6);
+        wg.addColorStop(0, '#7ecfd4'); wg.addColorStop(1, '#4aa8b0');
+        c.fillStyle = wg;
+        rr(c, -68, -38, 136, 32, 5); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,0.5)';
+        for (let i = 0; i < 3; i++) {
+          const rp = ((t * 0.5 + i / 3) % 1);
+          c.globalAlpha = 0.55 * (1 - rp);
+          c.beginPath();
+          c.ellipse(0, -22, 6 + rp * 46, 2.4 + rp * 9, 0, 0, Math.PI * 2);
+          c.stroke();
         }
+        c.globalAlpha = 1;
+        c.fillStyle = '#efe8d8';
+        c.fillRect(-4, -44, 8, 12);
+        c.beginPath(); c.ellipse(0, -44, 6.5, 3.6, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,0.75)';
+        c.lineWidth = 1.4;
+        for (let k = 0; k < 5; k++) {
+          const ang = -Math.PI / 2 + (k - 2) * 0.32;
+          const jx = Math.cos(ang) * 22, jy = -44 + Math.sin(ang) * 17;
+          c.beginPath();
+          c.moveTo(0, -44);
+          c.quadraticCurveTo(jx * 0.5, -49, jx, jy);
+          c.stroke();
+        }
+        c.restore();
       } },
       { y: 392, draw: (c, t) => {
-        cypress(c, 96, 392, 110);
-        cypress(c, 146, 390, 78, '#4e8f4a');
+        // the mango tree, far side of the lawn
+        const s = scene.depth(392) * 1.2;
+        c.save();
+        c.translate(500, 392);
+        c.scale(s, s);
+        const sway = Math.sin(t * 0.9) * 2;
+        c.strokeStyle = '#6b4423'; c.lineWidth = 6;
+        c.beginPath(); c.moveTo(5, 0); c.quadraticCurveTo(-5, -42, 3, -76); c.stroke();
+        c.lineWidth = 3.5;
+        c.beginPath(); c.moveTo(3, -62); c.quadraticCurveTo(-18, -70, -28, -78); c.stroke();
+        canopy(c, mulberry32(303), -4 + sway, -100, 40, sway);
+        c.fillStyle = '#f2a03d';
+        for (const [mx, my] of [[-26, -74], [-8, -70], [14, -78], [24, -88], [-12, -92]]) {
+          c.beginPath(); c.ellipse(mx, my, 2.6, 3.5, 0.4, 0, Math.PI * 2); c.fill();
+        }
+        c.restore();
+      } },
+      { y: 386, draw: (c, t) => {
+        const s = scene.depth(386);
+        c.save(); c.translate(96, 386); c.scale(s, s); cypress(c, 0, 0, 110); c.restore();
+        c.save(); c.translate(146, 386); c.scale(s, s); cypress(c, 0, 0, 78, '#4e8f4a'); c.restore();
       } }
     ];
     scene.drawBg = function (ctx, t) {
-      const g = ctx.createLinearGradient(0, 0, 0, 240);
+      const g = ctx.createLinearGradient(0, 0, 0, 300);
       g.addColorStop(0, '#aee0e8'); g.addColorStop(0.7, '#d8ecd9'); g.addColorStop(1, '#f7e9c9');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 640, 240);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 640, 300);
       sunDisc(ctx, 552, 56, 15, 'rgba(255,244,210,0.8)', 'rgba(255,240,195,0)');
       for (const c of [{ x: 120, y: 46, s: 0.9, v: 3 }, { x: 380, y: 80, s: 0.8, v: 2.4 }, { x: 560, y: 40, s: 0.7, v: 3.6 }]) {
         cloud(ctx, mulberry32(c.x | 0), ((c.x + t * c.v) % 720) - 40, c.y, c.s);
       }
-      // distant white pavilion, hazy, top-left
+      // distant white pavilion, hazy, sitting on the horizon
       ctx.globalAlpha = 0.9;
       ctx.fillStyle = '#f4efe2';
-      ctx.fillRect(40, 158, 170, 58);
+      ctx.fillRect(40, 230, 170, 58);
       ctx.fillStyle = '#e2d9c4';
-      ctx.fillRect(40, 158, 170, 6);
+      ctx.fillRect(40, 230, 170, 6);
       for (const mx of [66, 92, 118, 148, 178]) {
         ctx.fillStyle = '#cbbfa2';
-        pointedArch(ctx, mx, 212, 14, 38); ctx.fill();
+        pointedArch(ctx, mx, 284, 14, 38); ctx.fill();
       }
       ctx.fillStyle = '#f7f3e8';
       for (const dx of [64, 125, 186]) {
         ctx.beginPath();
-        ctx.moveTo(dx - 18, 158); ctx.quadraticCurveTo(dx, 130, dx + 18, 158); ctx.closePath(); ctx.fill();
+        ctx.moveTo(dx - 18, 230); ctx.quadraticCurveTo(dx, 202, dx + 18, 230); ctx.closePath(); ctx.fill();
       }
       ctx.globalAlpha = 1;
-      // lawn
-      const gg = ctx.createLinearGradient(0, 200, 0, 480);
-      gg.addColorStop(0, '#8cc97a'); gg.addColorStop(0.5, '#6fae5a'); gg.addColorStop(1, '#7cb868');
-      ctx.fillStyle = gg; ctx.fillRect(0, 200, 640, 280);
-      ctx.fillStyle = 'rgba(255,250,220,0.10)';
-      for (let i = 0; i < 6; i++) ctx.fillRect(0, 214 + i * 40, 640, 13);
-      // hedges along the far side
+      // ---- the lawn: an open plane running back from the hedges ----
+      const HORIZON = 300, VPX = 320;
+      const lg = ctx.createLinearGradient(0, HORIZON, 0, 480);
+      lg.addColorStop(0, '#547f42'); lg.addColorStop(0.35, '#639a4f'); lg.addColorStop(1, '#74ad5c');
+      ctx.fillStyle = lg; ctx.fillRect(0, HORIZON, 640, 480 - HORIZON);
+      // mowing stripes: wedges through the vanishing point, so they converge
+      ctx.save();
+      ctx.globalAlpha = 0.11;
+      ctx.fillStyle = '#ffffff';
+      for (let i = -4; i < 4; i += 2) {
+        ctx.beginPath();
+        ctx.moveTo(VPX, HORIZON);
+        ctx.lineTo(VPX + i * 96, 480);
+        ctx.lineTo(VPX + (i + 1) * 96, 480);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      // hedges marking the far edge of the lawn, layered for a clear horizon
+      ctx.fillStyle = '#3f7a3c';
+      blob(ctx, mulberry32(51), 150, HORIZON - 18, 200, 20, 0.4); ctx.fill();
+      blob(ctx, mulberry32(52), 500, HORIZON - 22, 190, 19, 0.4); ctx.fill();
       ctx.fillStyle = '#4e8f4a';
-      blob(ctx, mulberry32(51), 120, 226, 140, 15, 0.4); ctx.fill();
-      blob(ctx, mulberry32(52), 480, 214, 150, 14, 0.4); ctx.fill();
-      // central marble fountain tank
-      ctx.fillStyle = '#e8e0cc';
-      rr(ctx, 256, 300, 148, 44, 8); ctx.fill();
-      ctx.fillStyle = '#f4efe0';
-      rr(ctx, 250, 294, 160, 13, 6); ctx.fill();
-      const wg = ctx.createLinearGradient(0, 310, 0, 338);
-      wg.addColorStop(0, '#7ecfd4'); wg.addColorStop(1, '#4aa8b0');
-      ctx.fillStyle = wg;
-      rr(ctx, 262, 306, 136, 32, 5); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      for (let i = 0; i < 3; i++) {
-        const rp = ((t * 0.5 + i / 3) % 1);
-        ctx.globalAlpha = 0.55 * (1 - rp);
-        ctx.beginPath();
-        ctx.ellipse(330, 322, 6 + rp * 46, 2.4 + rp * 9, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#efe8d8';
-      ctx.fillRect(326, 300, 8, 12);
-      ctx.beginPath(); ctx.ellipse(330, 300, 6.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 1.4;
-      for (let k = 0; k < 5; k++) {
-        const ang = -Math.PI / 2 + (k - 2) * 0.32;
-        const jx = 330 + Math.cos(ang) * 22, jy = 304 + Math.sin(ang) * 17;
-        ctx.beginPath();
-        ctx.moveTo(330, 300);
-        ctx.quadraticCurveTo(330 + (jx - 330) * 0.5, 295, jx, jy);
-        ctx.stroke();
-      }
-      // flowerbeds
-      ctx.fillStyle = '#3a6b45';
-      blob(ctx, mulberry32(61), 136, 386, 76, 14, 0.4); ctx.fill();
-      blob(ctx, mulberry32(62), 430, 260, 74, 14, 0.4); ctx.fill();
-      ctx.fillStyle = '#5d9a4e';
-      blob(ctx, mulberry32(63), 136, 383, 66, 10, 0.4); ctx.fill();
-      blob(ctx, mulberry32(64), 430, 257, 64, 10, 0.4); ctx.fill();
-      flowerDots(ctx, mulberry32(65), 76, 374, 120, 20, 18, fcols);
-      flowerDots(ctx, mulberry32(66), 386, 248, 108, 18, 16, fcols);
-      // sandy walking path along the bottom
-      const pg = ctx.createLinearGradient(0, 396, 0, 480);
-      pg.addColorStop(0, '#dcc79c'); pg.addColorStop(1, '#c9b184');
-      ctx.fillStyle = pg; ctx.fillRect(0, 396, 640, 84);
-      ctx.strokeStyle = '#7a5e28'; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.moveTo(0, 397); ctx.lineTo(640, 397); ctx.stroke();
-      ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(122,94,40,0.35)';
-      for (let i = 0; i < 12; i++) {
-        const sx = 16 + i * 52;
-        ctx.beginPath(); ctx.moveTo(sx, 402); ctx.lineTo(sx + 22, 478); ctx.stroke();
-      }
+      blob(ctx, mulberry32(53), 150, HORIZON - 26, 170, 14, 0.4); ctx.fill();
+      blob(ctx, mulberry32(54), 500, HORIZON - 30, 160, 13, 0.4); ctx.fill();
+      // the hedge line's shadow falling across the top of the lawn
+      const hg = ctx.createLinearGradient(0, HORIZON, 0, 344);
+      hg.addColorStop(0, 'rgba(28,58,22,0.36)');
+      hg.addColorStop(1, 'rgba(28,58,22,0)');
+      ctx.fillStyle = hg; ctx.fillRect(0, HORIZON, 640, 44);
+      // grass, sized by how far up the lawn it grows
       const r3 = mulberry32(88);
-      for (let i = 0; i < 10; i++) grassTuft(ctx, r3, r3() * 640, 400 + r3() * 8, 6 + r3() * 6);
+      for (let i = 0; i < 26; i++) {
+        const gy = HORIZON + 8 + r3() * 168;
+        grassTuft(ctx, r3, r3() * 640, gy, (4 + r3() * 6) * scene.depth(gy));
+      }
+      // the sandy path, right up against the camera
+      const pg = ctx.createLinearGradient(0, 448, 0, 480);
+      pg.addColorStop(0, 'rgba(219,197,152,0)');
+      pg.addColorStop(1, 'rgba(212,187,141,0.95)');
+      ctx.fillStyle = pg; ctx.fillRect(0, 448, 640, 32);
+      const pr = mulberry32(89);
+      for (let i = 0; i < 16; i++) {
+        ctx.fillStyle = `rgba(150,120,70,${(0.10 + pr() * 0.14).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.ellipse(pr() * 640, 456 + pr() * 22, 6 + pr() * 14, 2 + pr() * 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       butterfly(ctx, t, 330, 150, '#f2a03d', 0);
       butterfly(ctx, t, 390, 180, '#7ea8e8', 2.6);
-      exitGlow(ctx, 20, 438, t);
-      exitGlow(ctx, 619, 438, t);
+      exitGlow(ctx, 20, 428, t);
+      exitGlow(ctx, 620, 428, t);
     };
     scene.drawFg = function (ctx, t) {
+      // framing: foliage cropping the frame, as in the reference shots
       fgFoliage(ctx, mulberry32(921), 24, -10, 62);
       fgVine(ctx, mulberry32(923), 100, 56);
+      fgFoliage(ctx, mulberry32(925), -16, 500, 84);
+      fgFoliage(ctx, mulberry32(927), 656, 506, 88);
+      fgVine(ctx, mulberry32(929), 604, 74);
     };
     return scene;
   })();
@@ -656,85 +769,103 @@ const Scenes = (() => {
       const rnd = mulberry32(202);
       for (let i = 0; i < 42; i++) stars.push([rnd() * 640, 8 + rnd() * 150, rnd() * 6, 0.7 + rnd() * 1.1]);
     }
-    const scene = makeScene('terrace', 'The Marble Terrace');
+    const scene = makeScene('terrace', 'The Marble Terrace', {
+      far:  { y: 306, x0: 150, x1: 490 },
+      near: { y: 476, x0: -40, x1: 680 }
+    });
     scene.exits = [
-      { x: 0, y: 380, w: 42, h: 100, side: 'left', target: 'garden', spawn: { x: 560, y: 445 }, label: 'the Hazuri Bagh gardens' }
+      { x: 0, y: 340, w: 46, h: 138, side: 'left', target: 'garden', spawn: { x: 560, y: 445 }, label: 'the Hazuri Bagh gardens' }
     ];
     scene.hotspots = [
-      { x: 452, y: 288, w: 84, h: 86, label: 'the palace peacock', lines: [
+      { x: 470, y: 292, w: 70, h: 100, label: 'the palace peacock', lines: [
         'The palace peacock. He judges everyone, silently — but kindly.'] },
-      { x: 156, y: 360, w: 40, h: 30, label: 'the teapot', pickup: true, item: 'teapot', flag: 'teapotTaken',
+      { x: 148, y: 388, w: 54, h: 36, label: 'the teapot', pickup: true, item: 'teapot', flag: 'teapotTaken',
         pickupLines: ['The second cup is always for whoever wanders by.', 'Today, that will be Chacha Bagh, the gardener.'] },
-      { x: 128, y: 356, w: 104, h: 62, label: 'the tea table', lines: [
+      { x: 100, y: 386, w: 124, h: 74, label: 'the tea table', lines: [
         'Two cups. The second is always for whoever happens to wander by.'] },
-      { x: 80, y: 150, w: 460, h: 120, label: 'the hall of mirrors', lines: [
+      { x: 60, y: 150, w: 490, h: 152, label: 'the hall of mirrors', lines: [
         'Five hundred candles inside, and every one of them on its best behavior.'] },
       { x: 42, y: 34, w: 74, h: 60, label: 'the early moon', lines: [
         'Even the moon arrives early, to get the best seat for the sunset.'] },
-      { x: 356, y: 262, w: 60, h: 78, label: 'a standing lantern', lines: [
+      { x: 396, y: 320, w: 70, h: 78, label: 'a standing lantern', lines: [
         'It has been lit every evening for two hundred years. Never once late.'] }
     ];
     scene.props = [
-      { y: 382, draw: (c, t) => lantern(c, 470, 362, 0.95, t, 'rgba(255,196,110,A)') },
-      { y: 330, draw: (c, t) => {
-        // peacock beside the path
+      { y: 392, draw: (c, t) => {
+        const s = scene.depth(392);
+        c.save(); c.translate(430, 392); c.scale(s, s);
+        lantern(c, 0, -51, 1.7, t, 'rgba(255,196,110,A)');
+        c.restore();
+      } },
+      { y: 386, draw: (c, t) => {
+        // the palace peacock, drawn from its feet at the origin
+        const s = scene.depth(386) * 1.75;
         const sway = Math.sin(t * 1.4) * 1.5;
+        c.save();
+        c.translate(496, 386);
+        c.scale(s, s);
         c.fillStyle = '#2a7a9e';
-        c.beginPath(); c.ellipse(486, 306, 11, 15, 0.1, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(0, -32, 11, 15, 0.1, 0, Math.PI * 2); c.fill();
         c.strokeStyle = '#2a7a9e'; c.lineWidth = 2;
-        c.beginPath(); c.moveTo(486, 316); c.lineTo(486, 334); c.stroke();
+        c.beginPath(); c.moveTo(0, -22); c.lineTo(0, -4); c.stroke();
         c.strokeStyle = '#8a6a2a'; c.lineWidth = 1.3;
-        c.beginPath(); c.moveTo(482, 334); c.lineTo(482, 338); c.moveTo(490, 334); c.lineTo(490, 338); c.stroke();
+        c.beginPath(); c.moveTo(-4, -4); c.lineTo(-4, 0); c.moveTo(4, -4); c.lineTo(4, 0); c.stroke();
         c.fillStyle = '#1e5a78';
-        c.beginPath(); c.ellipse(484, 294, 5, 6.4, -0.2, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(-2, -44, 5, 6.4, -0.2, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#e8f4f7';
-        c.beginPath(); c.arc(482.6, 291.8, 1, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(-3.4, -46.2, 1, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#f2c14e';
-        c.beginPath(); c.moveTo(478, 295.5); c.lineTo(474.4, 296.6); c.lineTo(478, 297.7); c.closePath(); c.fill();
+        c.beginPath(); c.moveTo(-8, -42.5); c.lineTo(-11.6, -41.4); c.lineTo(-8, -40.3); c.closePath(); c.fill();
         c.strokeStyle = '#2a7a9e'; c.lineWidth = 0.9;
         for (let i = 0; i < 3; i++) {
           const a = -0.5 + i * 0.45;
-          c.beginPath(); c.moveTo(482, 289); c.lineTo(482 + Math.sin(a) * 4.5, 284.4 - i * 0.9); c.stroke();
+          c.beginPath(); c.moveTo(-4, -49); c.lineTo(-4 + Math.sin(a) * 4.5, -53.6 - i * 0.9); c.stroke();
           c.fillStyle = '#3ecfb2';
-          c.beginPath(); c.arc(482 + Math.sin(a) * 4.5, 284.4 - i * 0.9, 0.9, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(-4 + Math.sin(a) * 4.5, -53.6 - i * 0.9, 0.9, 0, Math.PI * 2); c.fill();
         }
         c.fillStyle = '#1e6a78';
         c.beginPath();
-        c.moveTo(491, 301);
-        c.quadraticCurveTo(506 + sway, 308, 508 + sway, 326);
-        c.quadraticCurveTo(496, 320, 489, 313);
+        c.moveTo(5, -37);
+        c.quadraticCurveTo(20 + sway, -30, 22 + sway, -12);
+        c.quadraticCurveTo(10, -18, 3, -25);
         c.closePath(); c.fill();
         c.fillStyle = '#3ecfb2';
         for (let i = 0; i < 3; i++) {
-          c.beginPath(); c.ellipse(498 + i * 3 + sway * 0.5, 308 + i * 5.4, 1.5, 2.3, 0.5, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(12 + i * 3 + sway * 0.5, -30 + i * 5.4, 1.5, 2.3, 0.5, 0, Math.PI * 2); c.fill();
         }
+        c.restore();
       } },
-      { y: 412, draw: (c, t) => {
-        // low tea table + cushion
+      { y: 446, draw: (c, t) => {
+        // low tea table + cushion, drawn from the foot of its legs
+        const s = scene.depth(446) * 1.34;
+        c.save();
+        c.translate(170, 446);
+        c.scale(s, s);
         c.fillStyle = '#c05a7a';
-        rr(c, 128, 402, 28, 11, 5); c.fill();
+        rr(c, -42, -6, 28, 11, 5); c.fill();
         c.fillStyle = '#a84866';
-        rr(c, 132, 406, 28, 11, 5); c.fill();
+        rr(c, -38, -2, 28, 11, 5); c.fill();
         c.fillStyle = '#8a5a33';
-        c.beginPath(); c.moveTo(150, 382); c.lineTo(200, 382); c.lineTo(194, 398); c.lineTo(156, 398); c.closePath(); c.fill();
-        c.fillStyle = '#6b4423'; c.fillRect(158, 398, 34, 10);
+        c.beginPath(); c.moveTo(-20, -26); c.lineTo(30, -26); c.lineTo(24, -10); c.lineTo(-14, -10); c.closePath(); c.fill();
+        c.fillStyle = '#6b4423'; c.fillRect(-12, -10, 34, 10);
         if (!Game.flags.teapotTaken) {
           c.fillStyle = '#f4efe2';
-          c.beginPath(); c.ellipse(168, 381, 6.4, 2.8, 0, 0, Math.PI * 2); c.fill();
-          c.fillRect(163, 375, 10, 6);
-          c.beginPath(); c.ellipse(165.5, 375, 4, 3, 0, Math.PI, 0); c.fill();
-          c.beginPath(); c.ellipse(172.5, 375, 4, 3, 0, Math.PI, 0); c.fill();
+          c.beginPath(); c.ellipse(-2, -27, 6.4, 2.8, 0, 0, Math.PI * 2); c.fill();
+          c.fillRect(-7, -33, 10, 6);
+          c.beginPath(); c.ellipse(-4.5, -33, 4, 3, 0, Math.PI, 0); c.fill();
+          c.beginPath(); c.ellipse(2.5, -33, 4, 3, 0, Math.PI, 0); c.fill();
           c.strokeStyle = 'rgba(255,255,255,0.55)';
           c.lineWidth = 1;
           c.beginPath();
-          c.moveTo(168, 371);
-          c.quadraticCurveTo(171 + Math.sin(t * 2) * 2, 366, 168, 361);
+          c.moveTo(-2, -37);
+          c.quadraticCurveTo(1 + Math.sin(t * 2) * 2, -42, -2, -47);
           c.stroke();
         }
         c.fillStyle = '#f4efe2';
-        c.beginPath(); c.arc(190, 380.5, 2.7, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(20, -27.5, 2.7, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#c05a7a';
-        c.beginPath(); c.arc(190, 380.5, 1.4, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(20, -27.5, 1.4, 0, Math.PI * 2); c.fill();
+        c.restore();
       } }
     ];
     scene.drawBg = function (ctx, t) {
@@ -777,13 +908,13 @@ const Scenes = (() => {
       for (const [wx, wy] of [[92, 236], [188, 242], [342, 244], [444, 248], [574, 260]]) {
         ctx.fillRect(wx, wy, 4, 6);
       }
-      // hall of mirrors along the top
+      // hall of mirrors along the back; its colonnade meets the floor at 302
       ctx.fillStyle = '#e0d4ba';
-      ctx.fillRect(60, 150, 490, 128);
-      const wg2 = ctx.createLinearGradient(0, 150, 0, 278);
+      ctx.fillRect(60, 150, 490, 152);
+      const wg2 = ctx.createLinearGradient(0, 150, 0, 302);
       wg2.addColorStop(0, '#efe6cf'); wg2.addColorStop(1, '#d9cbaa');
       ctx.fillStyle = wg2;
-      ctx.fillRect(60, 156, 490, 122);
+      ctx.fillRect(60, 156, 490, 146);
       ctx.fillStyle = '#b98a5a';
       ctx.fillRect(60, 180, 490, 5);
       ctx.fillStyle = '#8a5a33';
@@ -791,55 +922,77 @@ const Scenes = (() => {
       for (let i = 0; i < 5; i++) {
         const ax = 106 + i * 100;
         ctx.fillStyle = '#b09468';
-        cuspedArch(ctx, ax, 272, 64, 100); ctx.fill();
+        cuspedArch(ctx, ax, 300, 64, 122); ctx.fill();
         if (i === 1 || i === 3) {
-          const ag = ctx.createLinearGradient(0, 175, 0, 272);
+          const ag = ctx.createLinearGradient(0, 178, 0, 300);
           ag.addColorStop(0, '#f7c87a'); ag.addColorStop(1, '#e89a5a');
           ctx.fillStyle = ag;
-          cuspedArch(ctx, ax, 268, 50, 88); ctx.fill();
+          cuspedArch(ctx, ax, 296, 50, 108); ctx.fill();
           ctx.fillStyle = 'rgba(255,240,190,0.9)';
           for (let k = 0; k < 4; k++) {
             ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 5 + k + i);
-            ctx.beginPath(); ctx.arc(ax - 12 + (k % 2) * 24, 258 - k * 20, 1.8, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(ax - 12 + (k % 2) * 24, 284 - k * 22, 1.8, 0, Math.PI * 2); ctx.fill();
           }
           ctx.globalAlpha = 1;
         } else {
           ctx.fillStyle = '#6b5138';
-          cuspedArch(ctx, ax, 268, 50, 88); ctx.fill();
+          cuspedArch(ctx, ax, 296, 50, 108); ctx.fill();
           ctx.fillStyle = '#4a3a28';
-          cuspedArch(ctx, ax, 268, 38, 80); ctx.fill();
+          cuspedArch(ctx, ax, 296, 38, 98); ctx.fill();
         }
       }
-      // marble floor
-      const fg = ctx.createLinearGradient(0, 278, 0, 480);
-      fg.addColorStop(0, '#cfc8b6'); fg.addColorStop(0.4, '#e8e2d4'); fg.addColorStop(1, '#d5cdb8');
-      ctx.fillStyle = fg;
-      ctx.fillRect(0, 278, 640, 202);
-      ctx.strokeStyle = 'rgba(140,120,90,0.35)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 9; i++) {
-        const y = 284 + i * i * 1.3 + i * 5;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(640, y); ctx.stroke();
-      }
-      // rose-carpet walking band
-      const cg = ctx.createLinearGradient(0, 396, 0, 480);
-      cg.addColorStop(0, '#e0b8c0'); cg.addColorStop(1, '#d8aab4');
-      ctx.fillStyle = cg; ctx.fillRect(0, 396, 640, 84);
-      ctx.strokeStyle = '#a8788a'; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.moveTo(0, 397); ctx.lineTo(640, 397); ctx.stroke();
-      // rose petals
+      // ---- the marble floor: a receding plane running down to the camera ----
+      const HORIZON = 302, VPX = 320;
+      const fgd = ctx.createLinearGradient(0, HORIZON, 0, 480);
+      fgd.addColorStop(0, '#aaa393'); fgd.addColorStop(0.3, '#cdc6b5');
+      fgd.addColorStop(0.7, '#e4ded0'); fgd.addColorStop(1, '#d3ccba');
+      ctx.fillStyle = fgd; ctx.fillRect(0, HORIZON, 640, 480 - HORIZON);
+      paving(ctx, VPX, HORIZON, [303, 313, 326, 343, 365, 393, 427, 465], 0.09, 0.15);
+      // the hall's shadow pooling at the foot of the colonnade
+      const hg2 = ctx.createLinearGradient(0, HORIZON, 0, 348);
+      hg2.addColorStop(0, 'rgba(64,54,44,0.34)');
+      hg2.addColorStop(1, 'rgba(64,54,44,0)');
+      ctx.fillStyle = hg2; ctx.fillRect(0, HORIZON, 640, 46);
+      // the rose carpet, laid in perspective — the terrace's walking plane
+      const RG = ctx.createLinearGradient(0, HORIZON, 0, 480);
+      RG.addColorStop(0, '#b8798c'); RG.addColorStop(0.45, '#cf97a6'); RG.addColorStop(1, '#dcaab6');
+      ctx.fillStyle = RG;
+      ctx.beginPath();
+      ctx.moveTo(178, HORIZON + 2); ctx.lineTo(462, HORIZON + 2);
+      ctx.lineTo(672, 480); ctx.lineTo(-32, 480);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#9d6377'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(196, HORIZON + 14); ctx.lineTo(444, HORIZON + 14);
+      ctx.lineTo(636, 480); ctx.lineTo(4, 480);
+      ctx.closePath(); ctx.stroke();
+      // rose petals, sized by how near they are
       const rp = mulberry32(404);
-      ctx.fillStyle = '#e8a0b4';
-      for (let i = 0; i < 20; i++) {
-        const px2 = rp() * 640, py2 = 402 + rp() * 74;
-        ctx.beginPath(); ctx.ellipse(px2, py2, 2.4, 1.3, rp() * 3, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 34; i++) {
+        const py2 = HORIZON + 10 + rp() * 158;
+        const t2 = (py2 - HORIZON) / (480 - HORIZON);
+        const px2 = 320 + (rp() - 0.5) * (240 + t2 * 620);
+        const ps = scene.depth(py2);
+        ctx.fillStyle = `rgba(232,160,180,${(0.55 + rp() * 0.4).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.ellipse(px2, py2, 2.4 * ps, 1.3 * ps, rp() * 3, 0, Math.PI * 2);
+        ctx.fill();
       }
-      // standing lantern
-      lantern(ctx, 384, 286, 1.0, t, 'rgba(255,196,110,A)');
-      exitGlow(ctx, 20, 438, t);
+      exitGlow(ctx, 20, 428, t);
     };
     scene.drawFg = function (ctx, t) {
+      // framing: foliage, plus a foreground column cropping the right edge
       fgFoliage(ctx, mulberry32(931), 20, -8, 56);
+      fgFoliage(ctx, mulberry32(933), -14, 498, 72);
+      const cg2 = ctx.createLinearGradient(596, 0, 640, 0);
+      cg2.addColorStop(0, '#8d7f66'); cg2.addColorStop(1, '#6a5f4c');
+      ctx.fillStyle = cg2;
+      ctx.fillRect(604, 0, 36, 480);
+      ctx.fillStyle = 'rgba(40,32,24,0.25)';
+      ctx.fillRect(604, 0, 7, 480);
+      ctx.fillStyle = '#9c8e74';
+      ctx.fillRect(596, 0, 44, 16);
+      ctx.fillRect(596, 448, 44, 32);
     };
     return scene;
   })();
