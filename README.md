@@ -42,40 +42,47 @@ python3 server.py
 | Examine something | Hover (see the label), then click the hotspot |
 | Talk to someone | Click the character |
 | Pick something up | Click the pick-up hotspot |
-| Use / inspect an item | Click its icon in the satchel (bottom-right) |
+| **Inspect** an item | Click its icon in the satchel (bottom-right) |
+| **Use an item on something** | Click the item to pick it up, then click whatever you want to use it on |
+| Put an item back down | Click it again, or press `Esc` |
 | Choose a dialogue line | Click it, or press the number `1`–`9` |
 | Close the dialogue | `Esc` |
 | Music on/off | `M`, or the ♪ button top-right |
 | Pick a music track | The **Auto ▾** menu top-right |
 
+An item in hand sits proud of the others with a gold border, and the status line
+turns gold to remind you what you are holding. Clicking the wrong thing on the
+wrong thing is allowed — and answered.
+
 The cursor tells you what will happen:
 
 - a small **ring** — walk here
-- a **sparkling dot** — look / talk / pick up
+- a **sparkling dot** — look / talk / pick up (or *use* whatever is in hand)
 - an **arrow** — a doorway to another scene
 
 ---
 
-## The three scenes
+## The four scenes
 
-The fort is three scenes along a single east–west path. Walk to the glowing
-doorway on either edge to move between them.
+The fort is four scenes. Walk to the glowing doorway on either edge to move
+between them — or, at the gate, through the shut wooden doors on the left.
 
 Each scene is staged in **perspective**: the walkable floor is a trapezoid that
-recedes toward a vanishing point at the back wall, and the Prince scales with
-distance — small by the wall, large up close. He can walk *behind* mid-ground
-props (the fountain, the tea table) and is occluded by them correctly.
+recedes toward a vanishing point at the back wall, and characters scale with
+distance — small by the wall, large up close. They can walk *behind* mid-ground
+props (the fountain, the tea table, the cook's long table) and are occluded
+correctly.
 
 ### 1. The Alamgiri Gate — *dawn*
 A courtyard of converging paving running back to the sandstone wall, with shut
 outer doors to the left and the great gate arch to the right. Exit **right** to
-the gardens.
+the gardens, **left** through the doors into the kitchens.
 
 ### 2. Hazuri Bagh — *the garden, midday*
 An open lawn receding to a hedge line, with mowing stripes fanning from the
-vanishing point, a marble fountain mid-ground, a not-yet-ripe mango tree,
-butterflies, and **Chacha Bagh**, the old gardener. Exit **left** to the gate,
-**right** to the terrace.
+vanishing point, a marble fountain mid-ground, a mango tree with three monkeys
+sitting on the only ripe fruit, butterflies, and **Chacha Bagh**, the old
+gardener. Exit **left** to the gate, **right** to the terrace.
 
 ### 3. The Marble Terrace — *dusk*
 The hall of mirrors along the back, its colonnade meeting a marble floor laid
@@ -83,25 +90,38 @@ with a rose carpet in perspective, the early moon, a standing lantern, the
 palace peacock (he judges you, kindly), and a tea table set for two. Exit
 **left** to the garden.
 
+### 4. The Shahi Bawarchi Khana — *the fort kitchens*
+A great hearth, copper pots hanging from the beams, two shelves of spice jars,
+a long scrubbed prep table, and **Ustad Bawarchi**, who is not pleased to see
+you. Exit **right** to the gate.
+
 ---
 
-## The quest *(spoilers — read only if you're stuck)*
+## The puzzle *(spoilers — read only if you're stuck)*
 
-The whole adventure is one small, gentle errand:
+One job, four dependent steps, and one trick worth knowing.
 
-1. At the **Alamgiri Gate**, walk right into **Hazuri Bagh**.
-2. Talk to **the old gardener** and ask *"Is everything well, chacha?"*
-   He aches for cardamom tea, but the kettle is gone — and the teapot of the
-   marble terrace never runs dry.
-3. Exit right to the **Marble Terrace** and click the **teapot** on the tea
-   table. It joins your satchel.
-4. Walk back to the garden and talk to the gardener again. Choose
-   *"It is yours, chacha."*
-5. He accepts the teapot and rewards you with a **mango** — a historic day,
-   the fort monkeys voted on it.
+1. **Hazuri Bagh.** Talk to **Chacha Bagh** and ask *"Is everything well,
+   chacha?"* He longs for cardamom tea and has neither a pot nor the spice: the
+   teapot of the marble terrace never runs dry, and the cardamom belongs to the
+   cook.
+2. **The kitchens.** **Ustad Bawarchi** will not part with the cardamom for
+   coin — *"Coin does not sweeten a dish, Prince. Fruit does."* He wants a ripe
+   mango.
+3. **The monkeys.** The only ripe mango in the fort is guarded by the monkeys of
+   Hazuri Bagh. They do not sell. They **trade** — and what they want is a
+   peacock's tail feather.
+4. **The terrace, and the trick.** The peacock will not give up a feather while
+   he is watching. But the teapot is *polished to a mirror shine* — **pick up
+   the teapot and use it on the peacock**. He catches sight of himself, turns to
+   check the hall of mirrors, and a feather drifts loose while he is busy.
 
-There are no fail states, no dead ends, and no wrong order. Click the mango in
-your satchel afterward if you'd like the prince's opinion of it.
+Then follow the chain back: **feather → monkeys → mango → cook → cardamom**,
+and finally take the pot and the spice to the gardener. Choose *"Both. Shall I
+put the water on?"*
+
+There are no fail states and no dead ends. Wrong combinations are answered with
+a line rather than silence, so you can poke at everything.
 
 ---
 
@@ -131,7 +151,7 @@ mi6/
   js/player.js      — the Prince: sprites, depth-scaled walking, idle animation
   js/speech.js      — bottom-bar speech ("Speaker: …" lines) + rounded-rect helper
   js/dialogue.js    — inventory (satchel) + the gardener's dialogue tree
-  js/scenes.js      — the three scenes: perspective floors, props, hotspots, exits
+  js/scenes.js      — the four scenes: perspective floors, props, NPCs, hotspots
   js/input.js       — mouse/keyboard: hover, click-to-walk, dialogue keys
   js/main.js        — boot, title screen, game loop, scene transitions
   assets/           — hand-made sprite sheets for the Prince and the gardener
@@ -192,29 +212,27 @@ The CLI's local state lives in the gitignored `.netlify/`.
 
 ## Status & roadmap
 
-**In the game today:** three connected scenes staged in Monkey Island-style
+**In the game today:** four connected scenes staged in Monkey Island-style
 perspective — a trapezoid floor receding to a vanishing point, characters that
 scale with distance, correct occlusion behind mid-ground props, and foreground
 framing that crops the corners. Plus click-to-walk, look/talk/pickup hotspots, a
-two-item inventory, one NPC with a branching dialogue tree, a complete (if tiny)
-quest, three procedural music tracks with auto-switching, and a title screen.
+**"use X on Y" verb** with item selection, a two-item satchel, **three NPCs with
+branching dialogue**, and one complete puzzle with a real trick in it: *A
+Feather for a Mango*. Three procedural music tracks auto-switch by scene.
 
-**Next up — one real puzzle:** *"A Feather for a Mango."* The teapot is only the
-opening move; the gardener has no cardamom, the cook will trade cardamom only for
-a ripe mango, and the monkeys who hoard the mangoes will trade only for the
-peacock's tail feather — which you get by angling the standing lantern so the
-peacock falls in love with his reflection in the hall of mirrors. This needs:
+**Known rough edges**
 
-- a **"use X on Y"** verb (today the Prince can only look, talk and pick up)
-- **multi-NPC dialogue** (`Dialogue.open()` currently always opens the gardener)
-- a **fourth scene** — the fort kitchen — for the cook
-- a general NPC renderer (the gardener is currently a one-off)
+- The cook and the monkeys are **painted with canvas paths**, not sprite sheets —
+  they read as hand-drawn but are simpler than the Prince and Chacha Bagh.
+- The gardener is one static pose; no NPC has a walk cycle.
+- `scene.blocked[]` is still unused, so the Prince can walk through the long
+  table rather than round it.
 
 **Also on the list:**
 
+- sprite sheets for the cook and the monkeys, to match the existing two
 - per-character speech-blip voices (the voice specs are ready, the synth is planned)
-- more characters (the gatekeeper, a wandering singer…)
-- walk cycles for NPCs (the gardener is still a single static pose)
+- more characters (a gatekeeper, a wandering singer…)
 - hand-painted sprite sheets replacing the procedural props over time
 
 The specs in `CONTENT-GUIDE.md` are the contract — any of those upgrades can
