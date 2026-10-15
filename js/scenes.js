@@ -2,41 +2,36 @@
 // courts — the prince walks along a straight path at the bottom of each
 // scene, landmarks and characters along the top. Everything is "hand-painted"
 // with canvas paths in a warm watercolor style, rendered at 640x480.
-const GardenerSprites = {
-  img: null,
-  loaded: false,
-  load() {
-    const im = new Image();
-    im.onload = () => { this.loaded = true; };
-    im.src = 'assets/gardener/g-pose-0.png';
-    this.img = im;
-  }
-};
-
-// Sprite sheets for the characters that have them. Each is loaded once; the
-// drawing code below waits for `loaded` so nothing pops in half-rendered.
+// Sprite frames for every painted character. Each holds an ordered set of
+// same-body poses: the first is the resting pose, the rest are the idle fidgets
+// it dissolves into and back out of (see drawIdle below).
 const ActorSprites = {
-  cook: { idle: null, loaded: false },
+  gardener: { frames: [], loaded: false },
+  cook: { frames: [], loaded: false },
   monkey: { frames: [], loaded: false },
-  peacock: { side: null, display: null, loaded: false },
+  peacock: { side: [], display: [], loaded: false },
+
   load() {
-    const one = (src, set, done) => {
-      const im = new Image();
-      im.onload = () => { set(im); if (done) done(); };
-      im.src = src;
-      return im;
+    const load = (list, into, done) => {
+      let left = list.length;
+      list.forEach((src, i) => {
+        const im = new Image();
+        im.onload = () => { into[i] = im; if (--left === 0 && done) done(); };
+        im.src = src;
+      });
     };
-    one('assets/cook/cook-idle.png', (im) => { this.cook.idle = im; this.cook.loaded = true; });
-    let left = 3;
-    this.monkey.frames = [null, null, null];
-    ['monkey-0', 'monkey-1', 'monkey-2'].forEach((n, i) => {
-      one('assets/monkey/' + n + '.png', (im) => { this.monkey.frames[i] = im; },
-          () => { if (--left === 0) this.monkey.loaded = true; });
-    });
-    let pleft = 2;
-    const pdone = () => { if (--pleft === 0) this.peacock.loaded = true; };
-    one('assets/peacock/peacock-side.png', (im) => { this.peacock.side = im; }, pdone);
-    one('assets/peacock/peacock-display.png', (im) => { this.peacock.display = im; }, pdone);
+    load(['assets/gardener/g-pose-0.png', 'assets/gardener/g-pose-1.png'],
+      this.gardener.frames, () => { this.gardener.loaded = true; });
+    load(['assets/cook/cook-idle.png', 'assets/cook/cook-idle-1.png', 'assets/cook/cook-idle-2.png'],
+      this.cook.frames, () => { this.cook.loaded = true; });
+    load(['assets/monkey/monkey-0.png', 'assets/monkey/monkey-0b.png',
+          'assets/monkey/monkey-1.png', 'assets/monkey/monkey-1b.png',
+          'assets/monkey/monkey-2.png', 'assets/monkey/monkey-2b.png'],
+      this.monkey.frames, () => { this.monkey.loaded = true; });
+    load(['assets/peacock/peacock-side.png', 'assets/peacock/peacock-side-2.png'],
+      this.peacock.side, () => {});
+    load(['assets/peacock/peacock-display.png', 'assets/peacock/peacock-display-2.png'],
+      this.peacock.display, () => { this.peacock.loaded = true; });
   }
 };
 
@@ -581,68 +576,88 @@ const Scenes = (() => {
     ctx.beginPath(); ctx.arc(x, y, 10 + Math.sin(t * 2.4) * 2, 0, Math.PI * 2); ctx.stroke();
   }
 
-  // Chacha Bagh: sprite only — nothing draws until his sheet has arrived.
-  // baseY is where his feet rest on the floor; s is the depth scale there.
-  function drawGardenerChar(ctx, t, baseY, s) {
-    if (!GardenerSprites.loaded) return;
-    const TARGET_H = 134 * s;
-    const img = GardenerSprites.img;
-    const k = TARGET_H / img.height;
-    const w = img.width * k, h = img.height * k;
+  // ------------------------------------------------------------ idle life
+  // Each character holds a pose for a long beat, then dissolves to the next in
+  // a fraction of a second, so a few static frames read as someone shifting
+  // about. Derived entirely from the clock: no per-character state to keep.
+  function idleBlend(t, n, hold, fade, seed) {
+    if (n < 2) return { from: 0, to: 0, mix: 0 };
+    const cycle = hold + fade;
+    const tt = (t + seed * 2.3) % (cycle * n);
+    const i = Math.floor(tt / cycle);
+    const local = tt - i * cycle;
+    return { from: i % n, to: (i + 1) % n, mix: local < hold ? 0 : (local - hold) / fade };
+  }
+
+  // draw an idle set at a shared scale, bottom-aligned, dissolving between poses
+  function drawIdle(ctx, frames, x, baseY, k, t, seed, hold, fade, bobAmt) {
+    if (!frames[0]) return;
+    const b = idleBlend(t, frames.length, hold, fade, seed);
+    const dy = Math.sin(t * 1.15 + seed) * bobAmt;
     ctx.save();
-    ctx.translate(206, baseY);
-    // soft shadow, matched to the prince's
-    ctx.fillStyle = 'rgba(30,60,24,0.20)';
-    ctx.beginPath();
-    ctx.ellipse(0, 1, 20 * s, 5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    const breathe = 1 + Math.sin(t * 1.4) * 0.006;
-    ctx.scale(1, breathe);
-    ctx.drawImage(img, -w / 2, -h, w, h);
+    ctx.translate(x, baseY + dy);
+    for (let i = 0; i < frames.length; i++) {
+      const a = i === b.from ? 1 - b.mix : (i === b.to ? b.mix : 0);
+      if (a <= 0.004 || !frames[i]) continue;
+      const im = frames[i];
+      const w = im.width * k, h = im.height * k;
+      ctx.globalAlpha = a;
+      ctx.drawImage(im, -w / 2, -h, w, h);
+    }
     ctx.restore();
   }
 
-  // ------------------------------------------------- other characters
-  // The cook and the monkeys have no sprite sheets yet, so they are painted with
-  // canvas paths in the same flat-fill-and-ink style as the props. Feet sit at
-  // baseY; s is the depth scale there.
-  const INK = 'rgba(74,44,22,0.85)';
+  // Height on screen for each character, at depth scale 1.
+  const COOK_H = 142, MONKEY_H = 92, PEACOCK_H = 92;
+  const GARDENER_X = 206, GARDENER_H = 134;
 
-  // Height on screen each character is drawn at, at depth scale 1.
-  const COOK_H = 142, MONKEY_H = 86, PEACOCK_H = 92;
+  // Chacha Bagh: stands in the garden with his can, and now and then wipes his brow.
+  function drawGardenerChar(ctx, t, baseY, s) {
+    const frames = ActorSprites.gardener.frames;
+    if (!frames[0]) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(30,60,24,0.20)';
+    ctx.beginPath(); ctx.ellipse(GARDENER_X, baseY + 1, 20 * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    const k = (GARDENER_H * s) / frames[0].height;
+    drawIdle(ctx, frames, GARDENER_X, baseY, k, t, 0.4, 7.5, 0.4, 0.5);
+  }
 
   function drawCook(ctx, baseX, baseY, s, t) {
-    const img = ActorSprites.cook.idle;
-    if (!img) return;
-    const h = COOK_H * s;
-    const w = img.width * (h / img.height);
+    const frames = ActorSprites.cook.frames;
+    if (!frames[0]) return;
     ctx.save();
     ctx.fillStyle = 'rgba(60,30,10,0.22)';
-    ctx.beginPath(); ctx.ellipse(baseX, baseY + 1, w * 0.34, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.translate(baseX, baseY + Math.sin(t * 1.2) * 0.7);
-    ctx.drawImage(img, -w / 2, -h, w, h);
+    ctx.beginPath(); ctx.ellipse(baseX, baseY + 1, 26 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+    const k = (COOK_H * s) / frames[0].height;
+    // a slow loop: apron, stir, taste, apron
+    drawIdle(ctx, frames, baseX, baseY, k, t, 1.9, 5.5, 0.35, 0.5);
   }
 
-  // Every monkey is drawn at one shared scale, taken from the walking frame, so
-  // the seated poses stay correctly shorter than the standing one.
+  // Every monkey shares one scale, taken from the tallest frame in the set, so
+  // a shorthand sitting pose stays correctly smaller than a longer one.
   function monkeyScale(s) {
-    const ref = ActorSprites.monkey.frames[2];
+    const all = ActorSprites.monkey.frames;
+    let ref = all[0];
+    for (const im of all) if (im && ref && im.height > ref.height) ref = im;
     return ref ? (MONKEY_H * s) / ref.height : 0;
   }
 
-  function drawMonkey(ctx, x, baseY, s, t, which, bob) {
-    const img = ActorSprites.monkey.frames[which];
-    if (!img) return;
+  // `which` picks a pair of poses: 0 -> 0/1, 1 -> 2/3, 2 -> 4/5
+  function drawMonkey(ctx, x, baseY, s, t, which, seed) {
+    const all = ActorSprites.monkey.frames;
+    if (!all[0]) return;
+    const pair = [all[which * 2], all[which * 2 + 1]];
+    if (!pair[0]) return;
     const k = monkeyScale(s);
-    const w = img.width * k, h = img.height * k;
-    const dy = Math.sin(t * 1.1 + which * 1.7) * (bob === undefined ? 1.0 : bob);
+    const w = pair[0].width * k;
     ctx.save();
     ctx.fillStyle = 'rgba(40,26,12,0.20)';
     ctx.beginPath(); ctx.ellipse(x, baseY + 1, w * 0.34, 3.6 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.translate(x, baseY + dy * 0.4);
-    ctx.drawImage(img, -w / 2, -h, w, h);
     ctx.restore();
+    const sd = seed === undefined ? which * 1.4 : seed;
+    drawIdle(ctx, pair, x, baseY, k, t, sd, 4.5 + which * 1.3, 0.3, 1.0);
   }
 
   // a fallen tail feather, lying on the carpet with a small gleam on it
@@ -1072,20 +1087,18 @@ const Scenes = (() => {
       } },
       { y: 386, draw: (c, t) => {
         // the palace peacock: side-on until he catches his own reflection,
-        // then the full display
+        // then the full display. Both states preen.
         const vain = !!Game.flags.peacockVain;
-        const img = vain ? ActorSprites.peacock.display : ActorSprites.peacock.side;
-        const ref = ActorSprites.peacock.side || img;
-        if (!img || !ref) return;
+        const set = vain ? ActorSprites.peacock.display : ActorSprites.peacock.side;
+        const ref = ActorSprites.peacock.side[0];
+        if (!set[0] || !ref) return;
         const sd = scene.depth(386);
         const k = (PEACOCK_H * sd) / ref.height;
-        const w = img.width * k, h = img.height * k;
         c.save();
         c.fillStyle = 'rgba(60,30,10,0.18)';
-        c.beginPath(); c.ellipse(496, 387, w * 0.30, 5 * sd, 0, 0, Math.PI * 2); c.fill();
-        c.translate(496, 386 + Math.sin(t * 1.3) * 0.6);
-        c.drawImage(img, -w / 2, -h, w, h);
+        c.beginPath(); c.ellipse(496, 387, 84 * sd, 5 * sd, 0, 0, Math.PI * 2); c.fill();
         c.restore();
+        drawIdle(c, set, 496, 386, k, t, 2.6, 5.0, 0.45, 0.5);
       } },
       { y: 446, draw: (c, t) => {
         // low tea table + cushion, drawn from the foot of its legs
@@ -1446,5 +1459,5 @@ const Scenes = (() => {
     return scene;
   })();
 
-  return { list: { gate, garden, terrace, kitchen }, overlay, get gardenerLoaded() { return GardenerSprites.loaded; } };
+  return { list: { gate, garden, terrace, kitchen }, overlay, get gardenerLoaded() { return ActorSprites.gardener.loaded; } };
 })();

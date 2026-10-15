@@ -271,7 +271,7 @@ def order_rows(boxes, min_overlap=0.35):
     return [sorted(r, key=lambda b: b[0]) for r in rows]
 
 
-def slice_sheet(src, out_dir, min_px=400, gap=4):
+def slice_sheet(src, out_dir, min_px=400, gap=1):
     im = Image.open(src).convert('RGB')
     w, h = im.size
     mask = key_checkerboard(im)

@@ -348,7 +348,6 @@ window.addEventListener('load', () => {
   Game.player = new Player();
   Input.init();
   PrinceSprites.load();
-  GardenerSprites.load();
   ActorSprites.load();
   setupMusicUI();
   requestAnimationFrame(loop);

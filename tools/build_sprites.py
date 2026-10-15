@@ -25,20 +25,30 @@ PRINCE = {
     'pose-4': 'prince_r1c4',   # back, mid-step
     'pose-6': 'prince_r1c5',   # back, standing
 }
+# the second (and third) frame of each set is the idle fidget the character
+# dissolves into and back out of, so they must share a body type
 GARDENER = {
     'g-pose-0': 'gardener_r2c2',   # standing with the watering can
+    'g-pose-1': 'gardener_r2c4',   # hand to the brow
 }
 COOK = {
-    'cook-idle': 'cook_r1c8',      # hands at the apron strings
+    'cook-idle': 'cook_r1c4',      # hands at the apron strings
+    'cook-idle-1': 'cook_r1c1',    # stirring the pot
+    'cook-idle-2': 'cook_r1c2',    # tasting off the spoon
 }
 MONKEY = {
-    'monkey-0': 'monkey_r1c6',   # sitting
-    'monkey-1': 'monkey_r1c3',   # cross-legged with a book
-    'monkey-2': 'monkey_r0c0',   # walking
+    'monkey-0': 'monkey_r1c6',    # tan, sitting
+    'monkey-0b': 'monkey_r1c1',   # tan, sitting with a scroll
+    'monkey-1': 'monkey_r1c3',    # green, cross-legged with a book
+    'monkey-1b': 'monkey_r1c10',  # green, sitting with a bowl
+    'monkey-2': 'monkey_r1c0',    # green, cross-legged
+    'monkey-2b': 'monkey_r1c10',  # green, sitting with a bowl
 }
 PEACOCK = {
-    'peacock-side': 'peacock_r0c0',     # before he is distracted
-    'peacock-display': 'peacock_r1c0',  # after: tail up, showing off
+    'peacock-side': 'peacock_r0c0',      # before he is distracted
+    'peacock-side-2': 'peacock_r2c1',    # ...and the preen
+    'peacock-display': 'peacock_r1c0',   # after: tail up, showing off
+    'peacock-display-2': 'peacock_r2c0',
 }
 
 
@@ -108,7 +118,7 @@ def main():
     print('peacock  -> assets/peacock')
     place('peacock', PEACOCK, 'assets/peacock')
 
-    for stale in ['g-pose-1', 'g-pose-2', 'g-pose-3', 'g-pose-4', 'g-pose-5',
+    for stale in ['g-pose-2', 'g-pose-3', 'g-pose-4', 'g-pose-5',
                   'g-walk-0', 'g-walk-1', 'g-walk-2', 'g-walk-4', 'g-walk-5']:
         p = f'assets/gardener/{stale}.png'
         if os.path.exists(p):

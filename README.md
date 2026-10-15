@@ -88,7 +88,8 @@ the gardens, **left** through the doors into the kitchens.
 An open lawn receding to a hedge line, with mowing stripes fanning from the
 vanishing point, a marble fountain mid-ground, a mango tree with three monkeys
 sitting on the only ripe fruit, butterflies, and **Chacha Bagh**, the old
-gardener. Exit **left** to the gate, **right** to the terrace.
+gardener — who waters, and now and then wipes his brow. Exit **left** to the
+gate, **right** to the terrace.
 
 ### 3. The Marble Terrace — *dusk*
 The hall of mirrors along the back, its colonnade meeting a marble floor laid
@@ -202,6 +203,19 @@ python3 tools/slice_sheet.py assets/_sheets/cook.png assets/_frames/cook
 4. **Crops, keys and cleans** each one: the same fringe-removal and alpha
    softening as below.
 
+### Idle sets
+
+Most characters are given an ordered **set** of same-body poses rather than one
+frame: the first is the resting pose, the rest are fidgets. `drawIdle` holds a
+pose for several seconds, then dissolves to the next over a fraction of a
+second, which is enough to make a handful of static sheets read as someone
+shifting about. So the cook works through apron → stir → taste, the gardener
+waters and then wipes his brow, the monkeys shift between sitting poses.
+
+Because the blend is derived from the clock rather than stored per character,
+there is no animation state to keep in sync — and every pose in a set must share
+a body type, or the dissolve looks like a costume change.
+
 `tools/build_sprites.py` then maps those frames onto the filenames the game
 loads, bottom-aligning each one and centring it on its own **centre of mass** —
 not its bounding box, which swings about with a held prop and makes the Prince
@@ -274,9 +288,9 @@ catches his own reflection. Three procedural music tracks auto-switch by scene.
 
 **Known rough edges**
 
-- The Prince has 5 walk frames and Chacha Bagh only one pose, so **no NPC has a
-  walk cycle** — the sheets have full cycles for everyone, they just aren't wired
-  up yet.
+- The NPCs **idle but do not walk**. The sheets carry full walk cycles for all
+  of them, but nothing drives an NPC anywhere: they have no position of their
+  own, and their hotspots are fixed rectangles matched to where the art sits.
 - The pathfinder plans around the props but does not *understand* them — a prop
   the Prince should walk behind rather than around has to be left unblocked.
 - The four scenes are hand-painted backgrounds, so moving a prop means repainting
