@@ -29,6 +29,7 @@ const ActorSprites = {
 
     load('cook', ['cook-idle', 'cook-idle-1', 'cook-idle-2'], this.cook.idle,
       () => { this.cook.loaded = true; });
+    load('cook', seq('cook-walk', 5), this.cook.walk, null);
 
     load('monkey', ['monkey-0', 'monkey-0b', 'monkey-1', 'monkey-1b', 'monkey-2', 'monkey-2b'],
       this.monkey.idle, () => { this.monkey.loaded = true; });

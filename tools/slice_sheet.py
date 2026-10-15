@@ -89,6 +89,18 @@ def key_checkerboard(im, tol=42):
             if 0 <= xx < w and 0 <= yy < h and not bg[yy][xx] and is_background(px[xx, yy], tones, tol):
                 bg[yy][xx] = True
                 q.append((xx, yy))
+
+    # Second pass: a sitting monkey's curled tail can enclose a patch of
+    # checkerboard with no path to the border, so the flood fill above leaves
+    # it opaque and it shows through the figure. Catch those on a much tighter
+    # colour match, which the checkerboard passes exactly and a monkey's pale
+    # belly does not.
+    tight = max(10, int(tol * 0.7))
+    for y in range(h):
+        row = bg[y]
+        for x in range(w):
+            if not row[x] and is_background(px[x, y], tones, tight):
+                row[x] = True
     return [[not bg[y][x] for x in range(w)] for y in range(h)]
 
 
@@ -275,9 +287,11 @@ def slice_sheet(src, out_dir, min_px=400, gap=1):
     im = Image.open(src).convert('RGB')
     w, h = im.size
     mask = key_checkerboard(im)
-    # each figure is already its own component; the tiny crosshair marks the
-    # generator leaves behind are dropped by the min_px floor
-    boxes = cluster(components(mask, w, h, 900), gap)
+    # Each figure is already its own component: clustering was an active
+    # liability, because a long tail makes one figure's bounding box overlap
+    # its neighbour's and the merge chain then swallows the whole sheet. The
+    # generator's crosshair specks are dropped by the min_px floor instead.
+    boxes = components(mask, w, h, 900)
 
     os.makedirs(out_dir, exist_ok=True)
     made = []

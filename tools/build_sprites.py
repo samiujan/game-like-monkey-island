@@ -28,31 +28,36 @@ PRINCE = {
 # the second (and third) frame of each set is the idle fidget the character
 # dissolves into and back out of, so they must share a body type
 GARDENER = {
-    'g-pose-0': 'gardener_r2c2',   # standing with the watering can
-    'g-pose-1': 'gardener_r2c4',   # hand to the brow
+    'g-pose-0': 'gardener_r1c0',   # standing
+    'g-pose-1': 'gardener_r1c4',   # hand to the brow
 }
 COOK = {
-    'cook-idle': 'cook_r1c4',      # hands at the apron strings
-    'cook-idle-1': 'cook_r1c1',    # stirring the pot
-    'cook-idle-2': 'cook_r1c2',    # tasting off the spoon
+    'cook-idle': 'cook_r0c0',      # arms at his sides
+    'cook-idle-1': 'cook_r0c5',    # one hand on his hip
+    'cook-idle-2': 'cook_r0c3',    # hands clasped
 }
 MONKEY = {
-    'monkey-0': 'monkey_r1c6',    # tan, sitting
-    'monkey-0b': 'monkey_r1c1',   # tan, sitting with a scroll
-    'monkey-1': 'monkey_r1c3',    # green, cross-legged with a book
-    'monkey-1b': 'monkey_r1c10',  # green, sitting with a bowl
-    'monkey-2': 'monkey_r1c0',    # green, cross-legged
-    'monkey-2b': 'monkey_r1c10',  # green, sitting with a bowl
+    'monkey-0': 'monkey_r2c0',    # sitting
+    'monkey-0b': 'monkey_r2c2',
+    'monkey-1': 'monkey_r2c1',    # sitting, arms crossed
+    'monkey-1b': 'monkey_r2c3',
+    'monkey-2': 'monkey_r3c0',    # on all fours
+    'monkey-2b': 'monkey_r3c4',
 }
 GARDENER_WALK = {
     'g-walk-0': 'gardener_r0c0', 'g-walk-1': 'gardener_r0c1',
     'g-walk-2': 'gardener_r0c2', 'g-walk-3': 'gardener_r0c3',
     'g-walk-4': 'gardener_r0c4',
 }
+COOK_WALK = {
+    'cook-walk-0': 'cook_r1c0', 'cook-walk-1': 'cook_r1c1',
+    'cook-walk-2': 'cook_r1c2', 'cook-walk-3': 'cook_r1c3',
+    'cook-walk-4': 'cook_r1c4',
+}
 MONKEY_WALK = {
     'monkey-walk-0': 'monkey_r0c0', 'monkey-walk-1': 'monkey_r0c1',
     'monkey-walk-2': 'monkey_r0c2', 'monkey-walk-3': 'monkey_r0c3',
-    'monkey-walk-4': 'monkey_r0c4',
+    'monkey-walk-4': 'monkey_r0c6',
 }
 PEACOCK_WALK = {
     'peacock-walk-0': 'peacock_r0c0', 'peacock-walk-1': 'peacock_r0c1',
@@ -129,6 +134,7 @@ def main():
     place('gardener', GARDENER_WALK, 'assets/gardener')
     print('cook     -> assets/cook')
     place('cook', COOK, 'assets/cook')
+    place('cook', COOK_WALK, 'assets/cook')
     print('monkey   -> assets/monkey')
     place('monkey', MONKEY, 'assets/monkey')
     place('monkey', MONKEY_WALK, 'assets/monkey')

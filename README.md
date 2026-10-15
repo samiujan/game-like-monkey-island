@@ -200,9 +200,22 @@ python3 tools/slice_sheet.py assets/_sheets/cook.png assets/_frames/cook
 2. **Learns the two checker tones per sheet** with k-means on the border pixels —
    the grey varies from 160 to 186 between sheets, so hardcoding it fails.
 3. **Finds each figure as a connected component**, dropping specks and the
-   crosshair marks by area, then groups them into rows.
-4. **Crops, keys and cleans** each one: the same fringe-removal and alpha
+   crosshair marks by area, then groups them into rows. Deliberately *not*
+   clustered: a long tail makes one figure's bounding box overlap its
+   neighbour's, and the merge chain then swallows the whole sheet.
+4. **Sweeps up enclosed background.** The flood fill cannot reach a pocket of
+   checkerboard sealed off by, say, a sitting monkey's curled tail, so those
+   patches stay opaque and show through the figure. A second pass keys them on
+   a much tighter colour match — which the checkerboard passes exactly and a
+   monkey's pale belly does not.
+5. **Crops, keys and cleans** each one: the same fringe-removal and alpha
    softening as below.
+
+Sheets differ: some carry a checkerboard, some a single flat colour, and the
+tolerance that suits one is wrong for another (the monkey's warm grey is close
+enough to its own fur that a small change collapses the sheet into one blob).
+`slice_sheet.py` therefore takes an optional tolerance — `python3
+tools/slice_sheet.py assets/_sheets/monkey.png assets/_frames/monkey 38`.
 
 ### Actors: idle sets and walking
 
@@ -257,7 +270,7 @@ them in place:
 python3 tools/clean_sprites.py
 ```
 
-It does three things per sheet:
+It works through each sheet like this:
 
 1. **Recolours the silhouette** — every edge pixel takes the average colour of
    the interior pixels near it, so a light fringe becomes the character's own
