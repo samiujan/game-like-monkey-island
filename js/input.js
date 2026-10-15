@@ -131,6 +131,8 @@ const Input = (() => {
           const hs = h.ref;
           let pending = { type: 'look', hs };
           let tx = hs.x + hs.w / 2;
+          // whoever this is, stop them wandering off while he walks over
+          if (hs.actor) Actors.hold(hs.actor, 10);
           if (Inventory.held) {
             pending = { type: 'use', hs, item: Inventory.held };
             const side = Game.player.x < tx ? -1 : 1;

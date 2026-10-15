@@ -44,6 +44,21 @@ MONKEY = {
     'monkey-2': 'monkey_r1c0',    # green, cross-legged
     'monkey-2b': 'monkey_r1c10',  # green, sitting with a bowl
 }
+GARDENER_WALK = {
+    'g-walk-0': 'gardener_r0c0', 'g-walk-1': 'gardener_r0c1',
+    'g-walk-2': 'gardener_r0c2', 'g-walk-3': 'gardener_r0c3',
+    'g-walk-4': 'gardener_r0c4',
+}
+MONKEY_WALK = {
+    'monkey-walk-0': 'monkey_r0c0', 'monkey-walk-1': 'monkey_r0c1',
+    'monkey-walk-2': 'monkey_r0c2', 'monkey-walk-3': 'monkey_r0c3',
+    'monkey-walk-4': 'monkey_r0c4',
+}
+PEACOCK_WALK = {
+    'peacock-walk-0': 'peacock_r0c0', 'peacock-walk-1': 'peacock_r0c1',
+    'peacock-walk-2': 'peacock_r0c2', 'peacock-walk-3': 'peacock_r0c3',
+    'peacock-walk-4': 'peacock_r0c4',
+}
 PEACOCK = {
     'peacock-side': 'peacock_r0c0',      # before he is distracted
     'peacock-side-2': 'peacock_r2c1',    # ...and the preen
@@ -111,15 +126,17 @@ def main():
 
     print('gardener -> assets/gardener')
     place('gardener', GARDENER, 'assets/gardener')
+    place('gardener', GARDENER_WALK, 'assets/gardener')
     print('cook     -> assets/cook')
     place('cook', COOK, 'assets/cook')
     print('monkey   -> assets/monkey')
     place('monkey', MONKEY, 'assets/monkey')
+    place('monkey', MONKEY_WALK, 'assets/monkey')
     print('peacock  -> assets/peacock')
     place('peacock', PEACOCK, 'assets/peacock')
+    place('peacock', PEACOCK_WALK, 'assets/peacock')
 
-    for stale in ['g-pose-2', 'g-pose-3', 'g-pose-4', 'g-pose-5',
-                  'g-walk-0', 'g-walk-1', 'g-walk-2', 'g-walk-4', 'g-walk-5']:
+    for stale in ['g-pose-2', 'g-pose-3', 'g-pose-4', 'g-pose-5']:
         p = f'assets/gardener/{stale}.png'
         if os.path.exists(p):
             os.remove(p)

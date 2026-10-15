@@ -2,39 +2,6 @@
 // courts — the prince walks along a straight path at the bottom of each
 // scene, landmarks and characters along the top. Everything is "hand-painted"
 // with canvas paths in a warm watercolor style, rendered at 640x480.
-// Sprite frames for every painted character. Each holds an ordered set of
-// same-body poses: the first is the resting pose, the rest are the idle fidgets
-// it dissolves into and back out of (see drawIdle below).
-const ActorSprites = {
-  gardener: { frames: [], loaded: false },
-  cook: { frames: [], loaded: false },
-  monkey: { frames: [], loaded: false },
-  peacock: { side: [], display: [], loaded: false },
-
-  load() {
-    const load = (list, into, done) => {
-      let left = list.length;
-      list.forEach((src, i) => {
-        const im = new Image();
-        im.onload = () => { into[i] = im; if (--left === 0 && done) done(); };
-        im.src = src;
-      });
-    };
-    load(['assets/gardener/g-pose-0.png', 'assets/gardener/g-pose-1.png'],
-      this.gardener.frames, () => { this.gardener.loaded = true; });
-    load(['assets/cook/cook-idle.png', 'assets/cook/cook-idle-1.png', 'assets/cook/cook-idle-2.png'],
-      this.cook.frames, () => { this.cook.loaded = true; });
-    load(['assets/monkey/monkey-0.png', 'assets/monkey/monkey-0b.png',
-          'assets/monkey/monkey-1.png', 'assets/monkey/monkey-1b.png',
-          'assets/monkey/monkey-2.png', 'assets/monkey/monkey-2b.png'],
-      this.monkey.frames, () => { this.monkey.loaded = true; });
-    load(['assets/peacock/peacock-side.png', 'assets/peacock/peacock-side-2.png'],
-      this.peacock.side, () => {});
-    load(['assets/peacock/peacock-display.png', 'assets/peacock/peacock-display-2.png'],
-      this.peacock.display, () => { this.peacock.loaded = true; });
-  }
-};
-
 const Scenes = (() => {
   // deterministic RNG so the paint doesn't shimmer
   function mulberry32(a) {
@@ -576,88 +543,19 @@ const Scenes = (() => {
     ctx.beginPath(); ctx.arc(x, y, 10 + Math.sin(t * 2.4) * 2, 0, Math.PI * 2); ctx.stroke();
   }
 
-  // ------------------------------------------------------------ idle life
-  // Each character holds a pose for a long beat, then dissolves to the next in
-  // a fraction of a second, so a few static frames read as someone shifting
-  // about. Derived entirely from the clock: no per-character state to keep.
-  function idleBlend(t, n, hold, fade, seed) {
-    if (n < 2) return { from: 0, to: 0, mix: 0 };
-    const cycle = hold + fade;
-    const tt = (t + seed * 2.3) % (cycle * n);
-    const i = Math.floor(tt / cycle);
-    const local = tt - i * cycle;
-    return { from: i % n, to: (i + 1) % n, mix: local < hold ? 0 : (local - hold) / fade };
-  }
-
-  // draw an idle set at a shared scale, bottom-aligned, dissolving between poses
-  function drawIdle(ctx, frames, x, baseY, k, t, seed, hold, fade, bobAmt) {
-    if (!frames[0]) return;
-    const b = idleBlend(t, frames.length, hold, fade, seed);
-    const dy = Math.sin(t * 1.15 + seed) * bobAmt;
-    ctx.save();
-    ctx.translate(x, baseY + dy);
-    for (let i = 0; i < frames.length; i++) {
-      const a = i === b.from ? 1 - b.mix : (i === b.to ? b.mix : 0);
-      if (a <= 0.004 || !frames[i]) continue;
-      const im = frames[i];
-      const w = im.width * k, h = im.height * k;
-      ctx.globalAlpha = a;
-      ctx.drawImage(im, -w / 2, -h, w, h);
-    }
-    ctx.restore();
-  }
-
-  // Height on screen for each character, at depth scale 1.
-  const COOK_H = 142, MONKEY_H = 92, PEACOCK_H = 92;
-  const GARDENER_X = 206, GARDENER_H = 134;
-
-  // Chacha Bagh: stands in the garden with his can, and now and then wipes his brow.
-  function drawGardenerChar(ctx, t, baseY, s) {
-    const frames = ActorSprites.gardener.frames;
-    if (!frames[0]) return;
-    ctx.save();
-    ctx.fillStyle = 'rgba(30,60,24,0.20)';
-    ctx.beginPath(); ctx.ellipse(GARDENER_X, baseY + 1, 20 * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    const k = (GARDENER_H * s) / frames[0].height;
-    drawIdle(ctx, frames, GARDENER_X, baseY, k, t, 0.4, 7.5, 0.4, 0.5);
-  }
-
+  // The cook never leaves his table, so he does not need the actor system —
+  // just the shared idle blender.
+  const COOK_H = 142;
   function drawCook(ctx, baseX, baseY, s, t) {
-    const frames = ActorSprites.cook.frames;
+    const frames = ActorSprites.cook.idle;
     if (!frames[0]) return;
     ctx.save();
     ctx.fillStyle = 'rgba(60,30,10,0.22)';
     ctx.beginPath(); ctx.ellipse(baseX, baseY + 1, 26 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    const k = (COOK_H * s) / frames[0].height;
+    const k = (COOK_H * s) / ActorSprites.refHeight('cook');
     // a slow loop: apron, stir, taste, apron
-    drawIdle(ctx, frames, baseX, baseY, k, t, 1.9, 5.5, 0.35, 0.5);
-  }
-
-  // Every monkey shares one scale, taken from the tallest frame in the set, so
-  // a shorthand sitting pose stays correctly smaller than a longer one.
-  function monkeyScale(s) {
-    const all = ActorSprites.monkey.frames;
-    let ref = all[0];
-    for (const im of all) if (im && ref && im.height > ref.height) ref = im;
-    return ref ? (MONKEY_H * s) / ref.height : 0;
-  }
-
-  // `which` picks a pair of poses: 0 -> 0/1, 1 -> 2/3, 2 -> 4/5
-  function drawMonkey(ctx, x, baseY, s, t, which, seed) {
-    const all = ActorSprites.monkey.frames;
-    if (!all[0]) return;
-    const pair = [all[which * 2], all[which * 2 + 1]];
-    if (!pair[0]) return;
-    const k = monkeyScale(s);
-    const w = pair[0].width * k;
-    ctx.save();
-    ctx.fillStyle = 'rgba(40,26,12,0.20)';
-    ctx.beginPath(); ctx.ellipse(x, baseY + 1, w * 0.34, 3.6 * s, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    const sd = seed === undefined ? which * 1.4 : seed;
-    drawIdle(ctx, pair, x, baseY, k, t, sd, 4.5 + which * 1.3, 0.3, 1.0);
+    Actors.drawIdle(ctx, frames, baseX, baseY, k, t, 1.9, 5.5, 0.35, 0.5);
   }
 
   // a fallen tail feather, lying on the carpet with a small gleam on it
@@ -840,16 +738,42 @@ const Scenes = (() => {
       { x: 0, y: 336, w: 46, h: 142, side: 'left', target: 'gate', spawn: { x: 500, y: 436 }, label: 'the Alamgiri Gate' },
       { x: 594, y: 326, w: 46, h: 98, side: 'right', target: 'terrace', spawn: { x: 78, y: 442 }, label: 'the marble terrace' }
     ];
+    // Chacha Bagh potters about his beds; the monkeys mill around the mango.
+    // Both their hotspots are dragged along with them (the monkeys share one
+    // that spans the patch they are kept inside).
+    const gardener = Actors.add('gardener', {
+      scene: 'garden', x: 206, y: 374,
+      home: { x0: 134, x1: 234, y0: 358, y1: 408 },
+      speed: 24, seed: 0.4
+    });
+    const monkeyHomes = [
+      { x0: 448, x1: 486, y0: 396, y1: 414 },
+      { x0: 500, x1: 538, y0: 400, y1: 418 },
+      { x0: 548, x1: 578, y0: 392, y1: 412 }
+    ];
+    const monkeys = monkeyHomes.map((home, i) => Actors.add('monkey', {
+      scene: 'garden', variant: i, seed: i * 1.4,
+      x: (home.x0 + home.x1) / 2, y: (home.y0 + home.y1) / 2,
+      home, speed: 40 - i * 3
+    }));
+
+    const gardenerHot = { x: 0, y: 0, w: 108, h: 138, label: 'the old gardener', talk: true, npc: 'gardener',
+      useOn: {
+        teapot: { action: () => Dialogue.open('gardener') },
+        cardamom: { action: () => Dialogue.open('gardener') }
+      } };
+    const monkeyHot = { x: 438, y: 328, w: 152, h: 102, label: 'the fort monkeys', talk: true, npc: 'monkeys',
+      useOn: { feather: { action: () => Dialogue.tradeMango() } } };
+    const gardenerProp = { y: gardener.y, draw: (c, t) => Actors.draw(c, gardener, scene, t) };
+    const monkeyProps = monkeys.map((m) => ({ y: m.y, draw: (c, t) => Actors.draw(c, m, scene, t) }));
+    Actors.attach(gardener, gardenerHot, gardenerProp);
+    monkeys.forEach((m, i) => Actors.attach(m, null, monkeyProps[i]));
+
     scene.hotspots = [
-      { x: 150, y: 240, w: 114, h: 140, label: 'the old gardener', talk: true, npc: 'gardener',
-        useOn: {
-          teapot: { action: () => Dialogue.open('gardener') },
-          cardamom: { action: () => Dialogue.open('gardener') }
-        } },
+      gardenerHot,
       { x: 230, y: 308, w: 200, h: 68, label: 'the fountain', lines: [
         'The fountain insists on dancing, even when nobody is watching. Respect.'] },
-      { x: 430, y: 340, w: 176, h: 84, label: 'the fort monkeys', talk: true, npc: 'monkeys',
-        useOn: { feather: { action: () => Dialogue.tradeMango() } } },
+      monkeyHot,
       { x: 444, y: 226, w: 106, h: 124, label: 'the mango tree', lines: [
         'Not ripe yet. The fort monkeys follow a very strict schedule.',
         'One mango has ripened early. The monkeys have declared it a national treasure.'] },
@@ -862,11 +786,11 @@ const Scenes = (() => {
     ];
     scene.blocked = [
       { x0: 246, y0: 348, x1: 414, y1: 376 },   // the fountain
-      { x0: 486, y0: 378, x1: 514, y1: 398 },   // the mango tree
-      { x0: 436, y0: 394, x1: 578, y1: 416 }    // the monkeys
+      { x0: 486, y0: 378, x1: 514, y1: 398 }    // the mango tree
     ];
     scene.props = [
-      { y: 374, draw: (c, t) => drawGardenerChar(c, t, 374, scene.depth(374)) },
+      gardenerProp,
+      ...monkeyProps,
       { y: 336, draw: (c, t) => flowerbed(c, 61, 430, 336, 74) },
       { y: 446, draw: (c, t) => flowerbed(c, 65, 152, 446, 84) },
       { y: 372, draw: (c, t) => {
@@ -931,16 +855,12 @@ const Scenes = (() => {
         c.save(); c.translate(146, 386); c.scale(s, s); cypress(c, 0, 0, 78, '#4e8f4a'); c.restore();
       } },
       { y: 412, draw: (c, t) => {
-        // the monkeys, sitting on the only ripe mango in Hazuri Bagh
+        // the mango they are guarding, which stays put while they mill about
         const ms = scene.depth(408);
-        // the mango itself, guarded, on the grass between them
         c.fillStyle = '#f2a03d';
         c.beginPath(); c.ellipse(506, 409, 8 * ms, 10 * ms, -0.3, 0, Math.PI * 2); c.fill();
         c.fillStyle = 'rgba(247,233,176,0.75)';
         c.beginPath(); c.ellipse(503, 405, 3 * ms, 4.6 * ms, -0.3, 0, Math.PI * 2); c.fill();
-        drawMonkey(c, 448, 404, ms, t, 0);
-        drawMonkey(c, 508, 412, ms, t, 1);
-        drawMonkey(c, 566, 402, ms, t, 2, 1.6);
       } }
     ];
     scene.drawBg = function (ctx, t) {
@@ -1042,27 +962,37 @@ const Scenes = (() => {
       far:  { y: 306, x0: 150, x1: 490 },
       near: { y: 476, x0: -40, x1: 680 }
     });
+    // the peacock struts up and down the carpet
+    const peacock = Actors.add('peacock', {
+      scene: 'terrace', x: 496, y: 386,
+      home: { x0: 430, x1: 566, y0: 382, y1: 428 },
+      speed: 20, seed: 2.6
+    });
+    const peacockHot = { x: 0, y: 0, w: 96, h: 104, label: 'the palace peacock', talk: true, npc: 'peacock',
+      useOn: {
+        teapot: {
+          // vanity is not curiosity: he has to want to see himself first
+          needs: () => Game.flags.peacockCurious,
+          refuse: [
+            'You hold the teapot up. The peacock does not look.',
+            '(He has never once needed to look. He already knows what he looks like.)'
+          ],
+          lines: [
+            'The peacock catches sight of himself in the polished brass.',
+            '(He goes very still. Then he turns, slowly, to check the hall of mirrors — to be sure.)',
+            '(A long tail feather works itself loose and drifts down to the carpet. He does not notice. He is busy.)'
+          ],
+          action: () => { Game.flags.peacockVain = true; }
+        }
+      } };
+    const peacockProp = { y: peacock.y, draw: (c, t) => Actors.draw(c, peacock, scene, t) };
+    Actors.attach(peacock, peacockHot, peacockProp);
+
     scene.exits = [
       { x: 0, y: 340, w: 46, h: 138, side: 'left', target: 'garden', spawn: { x: 560, y: 445 }, label: 'the Hazuri Bagh gardens' }
     ];
     scene.hotspots = [
-      { x: 470, y: 292, w: 70, h: 100, label: 'the palace peacock', talk: true, npc: 'peacock',
-        useOn: {
-          teapot: {
-            // vanity is not curiosity: he has to want to see himself first
-            needs: () => Game.flags.peacockCurious,
-            refuse: [
-              'You hold the teapot up. The peacock does not look.',
-              '(He has never once needed to look. He already knows what he looks like.)'
-            ],
-            lines: [
-              'The peacock catches sight of himself in the polished brass.',
-              '(He goes very still. Then he turns, slowly, to check the hall of mirrors — to be sure.)',
-              '(A long tail feather works itself loose and drifts down to the carpet. He does not notice. He is busy.)'
-            ],
-            action: () => { Game.flags.peacockVain = true; }
-          }
-        } },
+      peacockHot,
       { x: 514, y: 406, w: 60, h: 46, label: 'a fallen feather', pickup: true, item: 'feather', flag: 'featherTaken',
         if: () => Game.flags.peacockVain,
         pickupLines: ['Iridescent, enormous, and completely unguarded. The monkeys will never believe this.'] },
@@ -1085,21 +1015,7 @@ const Scenes = (() => {
         lantern(c, 0, -51, 1.7, t, 'rgba(255,196,110,A)');
         c.restore();
       } },
-      { y: 386, draw: (c, t) => {
-        // the palace peacock: side-on until he catches his own reflection,
-        // then the full display. Both states preen.
-        const vain = !!Game.flags.peacockVain;
-        const set = vain ? ActorSprites.peacock.display : ActorSprites.peacock.side;
-        const ref = ActorSprites.peacock.side[0];
-        if (!set[0] || !ref) return;
-        const sd = scene.depth(386);
-        const k = (PEACOCK_H * sd) / ref.height;
-        c.save();
-        c.fillStyle = 'rgba(60,30,10,0.18)';
-        c.beginPath(); c.ellipse(496, 387, 84 * sd, 5 * sd, 0, 0, Math.PI * 2); c.fill();
-        c.restore();
-        drawIdle(c, set, 496, 386, k, t, 2.6, 5.0, 0.45, 0.5);
-      } },
+      peacockProp,
       { y: 446, draw: (c, t) => {
         // low tea table + cushion, drawn from the foot of its legs
         const s = scene.depth(446) * 1.34;

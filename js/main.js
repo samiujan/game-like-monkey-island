@@ -236,6 +236,7 @@ function update(dt) {
   } else {
     Game.player.update(dt, Game.scene);
   }
+  Actors.update(dt, Game.scene);
   Speech.update(dt);
   if (Game.toast) {
     Game.toast.t += dt;
