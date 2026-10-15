@@ -31,6 +31,18 @@ const PrinceSprites = {
   get ready() { return this.loaded && this.walkLoaded; }
 };
 
+// Trying the wrong thing on the wrong thing is half of an adventure game.
+let refusalTick = 0;
+function refusal(item, target) {
+  const lines = [
+    `You wave ${item} at ${target}. The fort remains unimpressed.`,
+    `${item} and ${target}: not, on reflection, a partnership.`,
+    'Nothing happens, except that you look slightly silly.',
+    'Two perfectly good things, stubbornly refusing to be a solution.'
+  ];
+  return lines[refusalTick++ % lines.length];
+}
+
 class Player {
   constructor() {
     this.x = 320;
@@ -105,6 +117,20 @@ class Player {
       const cx = p.hs.x + p.hs.w / 2;
       if (Math.abs(cx - this.x) > 6) this.facing = cx > this.x ? 1 : -1;
       Dialogue.open(p.hs.npc);
+    } else if (p.type === 'use') {
+      const hs = p.hs;
+      const cx = hs.x + hs.w / 2;
+      if (Math.abs(cx - this.x) > 6) this.facing = cx > this.x ? 1 : -1;
+      const entry = (hs.useOn || {})[p.item];
+      Inventory.letGo();
+      Game.held = null;
+      if (entry) {
+        if (entry.lines) Speech.say(entry.lines, 'Prince');
+        if (entry.action) entry.action();
+      } else {
+        const item = Inventory.items[p.item].label;
+        Speech.say([refusal(item, hs.label)], 'Prince');
+      }
     }
   }
 

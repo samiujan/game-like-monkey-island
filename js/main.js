@@ -144,21 +144,26 @@ function drawCursor() {
 
 function drawStatusLine() {
   const h = Input.hover;
-  if (h.type === 'none' || !h.label || Speech.active) return;
+  let label = (h.type !== 'none' && h.label) ? h.label : '';
+  // while an item is in hand, always say so — even over empty ground
+  if (!label && Inventory.held) {
+    label = 'Using ' + Inventory.items[Inventory.held].label + ' — click something, or Esc to put it away';
+  }
+  if (!label || Speech.active) return;
   ctx.font = '12px Georgia, serif';
-  const tw = ctx.measureText(h.label).width;
+  const tw = ctx.measureText(label).width;
   const bw = tw + 22;
   const bx = 10, by = H - 30;
-  ctx.fillStyle = 'rgba(38,22,10,0.72)';
+  ctx.fillStyle = Inventory.held ? 'rgba(72,46,14,0.85)' : 'rgba(38,22,10,0.72)';
   rr(ctx, bx, by, bw, 22, 6);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(232,217,176,0.5)';
+  ctx.strokeStyle = Inventory.held ? '#f2c14e' : 'rgba(232,217,176,0.5)';
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.fillStyle = '#f2e4c2';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(h.label, bx + 11, by + 12);
+  ctx.fillText(label, bx + 11, by + 12);
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -211,14 +216,16 @@ function drawInventory() {
     const x = W - 14 - w - i * (w + 8);
     const y = H - h - 10;
     const hov = Input.mx >= x && Input.mx <= x + w && Input.my >= y && Input.my <= y + h;
-    ctx.fillStyle = hov ? 'rgba(70,44,20,0.85)' : 'rgba(38,22,10,0.72)';
-    rr(ctx, x, y, w, h, 8);
+    const isHeld = Inventory.held === bag[i];
+    const lift = isHeld ? 6 : 0;   // the item in hand sits proud of the rest
+    ctx.fillStyle = (hov || isHeld) ? 'rgba(70,44,20,0.9)' : 'rgba(38,22,10,0.72)';
+    rr(ctx, x, y - lift, w, h, 8);
     ctx.fill();
-    ctx.strokeStyle = hov ? '#f2c14e' : 'rgba(232,217,176,0.5)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isHeld ? '#f2c14e' : (hov ? '#f2c14e' : 'rgba(232,217,176,0.5)');
+    ctx.lineWidth = isHeld ? 2 : 1;
     ctx.stroke();
-    Inventory.items[bag[i]].icon(ctx, x + w / 2, y + h / 2);
-    Inventory._rects.push({ x, y, w, h, id: bag[i] });
+    Inventory.items[bag[i]].icon(ctx, x + w / 2, y + h / 2 - lift);
+    Inventory._rects.push({ x, y: y - lift, w, h, id: bag[i] });
   }
 }
 

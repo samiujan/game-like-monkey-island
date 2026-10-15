@@ -20,8 +20,14 @@ const Input = (() => {
       if (x >= ex.x && x <= ex.x + ex.w && y >= ex.y && y <= ex.y + ex.h)
         return { type: 'exit', label: 'Walk to ' + ex.label, ref: ex };
     }
+    const held = Inventory.held;
     for (const hs of scene.hotspots) {
+      if (hs.if && !hs.if()) continue;   // not there yet (or already gone)
       if (x >= hs.x && x <= hs.x + hs.w && y >= hs.y && y <= hs.y + hs.h) {
+        // holding something turns every hotspot into a use-target
+        if (held) {
+          return { type: 'hotspot', label: 'Use ' + Inventory.items[held].label + ' on ' + hs.label, ref: hs };
+        }
         let verb = 'Look at ';
         if (hs.talk) verb = 'Talk to ';
         else if (hs.pickup) verb = 'Pick up ';
@@ -58,11 +64,20 @@ const Input = (() => {
         // conversation options swallow clicks
         if (Dialogue.active) { Dialogue.clickAt(mx, my); return; }
 
-        // satchel items
+        // satchel items: click to pick the item up (or put it back down)
         for (const r of (Inventory._rects || [])) {
           if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+            const id = r.id;
             Speech.clear();
-            Speech.say([Inventory.items[r.id].look], 'Prince');
+            if (Inventory.held === id) {
+              Inventory.letGo();
+              Speech.say(['(You put it away.)'], 'Prince');
+            } else {
+              Inventory.hold(id);
+              Speech.say([Inventory.items[id].look], 'Prince');
+            }
+            Game.held = Inventory.held;
+            refreshHover();
             return;
           }
         }
@@ -72,6 +87,8 @@ const Input = (() => {
         const h = pick(mx, my);
         const pw = clampWalk({ x: mx, y: my });
         if (h.type === 'exit') {
+          Inventory.letGo();
+          Game.held = null;
           const ex = h.ref;
           const c = Game.scene.clamp(ex.x + ex.w / 2, pw.y);
           Game.player.walkTo(c.x, c.y, { type: 'exit', exit: ex });
@@ -79,7 +96,11 @@ const Input = (() => {
           const hs = h.ref;
           let pending = { type: 'look', hs };
           let tx = hs.x + hs.w / 2;
-          if (hs.talk) {
+          if (Inventory.held) {
+            pending = { type: 'use', hs, item: Inventory.held };
+            const side = Game.player.x < tx ? -1 : 1;
+            tx += side * 52;
+          } else if (hs.talk) {
             pending = { type: 'talk', hs };
             // stand beside the character, never on top of them
             const side = Game.player.x < tx ? -1 : 1;
@@ -103,6 +124,12 @@ const Input = (() => {
             const n = parseInt(e.key, 10);
             if (n >= 1 && n <= 9) Dialogue.key(n);
           }
+          return;
+        }
+        if (e.key === 'Escape' && Inventory.held) {
+          Inventory.letGo();
+          Game.held = null;
+          refreshHover();
         }
       });
     },

@@ -444,13 +444,188 @@ const Scenes = (() => {
     ctx.restore();
   }
 
+  // ------------------------------------------------- other characters
+  // The cook and the monkeys have no sprite sheets yet, so they are painted with
+  // canvas paths in the same flat-fill-and-ink style as the props. Feet sit at
+  // baseY; s is the depth scale there.
+  const INK = 'rgba(74,44,22,0.85)';
+
+  function drawCook(ctx, baseX, baseY, s, t) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(60,30,10,0.22)';
+    ctx.beginPath(); ctx.ellipse(baseX, baseY + 1, 26 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(baseX, baseY);
+    ctx.scale(s, s * (1 + Math.sin(t * 1.3) * 0.008));
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+
+    // shoes
+    ctx.fillStyle = '#6b3a22';
+    for (const dx of [-12, 12]) {
+      ctx.beginPath(); ctx.ellipse(dx, -4, 10, 5.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    // dhoti
+    ctx.fillStyle = '#cfd8e4';
+    ctx.beginPath();
+    ctx.moveTo(-19, -6); ctx.lineTo(-17, -50); ctx.lineTo(17, -50); ctx.lineTo(19, -6);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // the belly — a very large green kurta
+    ctx.fillStyle = '#3f6b4a';
+    ctx.beginPath();
+    ctx.moveTo(-21, -48);
+    ctx.bezierCurveTo(-33, -66, -33, -88, -21, -100);
+    ctx.lineTo(21, -100);
+    ctx.bezierCurveTo(33, -88, 33, -66, 21, -48);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // apron down the front
+    ctx.fillStyle = '#f2ece0';
+    ctx.beginPath();
+    ctx.moveTo(-13, -96);
+    ctx.bezierCurveTo(-21, -74, -21, -58, -15, -49);
+    ctx.lineTo(15, -49);
+    ctx.bezierCurveTo(21, -58, 21, -74, 13, -96);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // red sash
+    ctx.fillStyle = '#c0453a';
+    ctx.beginPath();
+    ctx.moveTo(-23, -58); ctx.quadraticCurveTo(0, -51, 23, -58);
+    ctx.lineTo(22, -48); ctx.quadraticCurveTo(0, -41, -22, -48);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // arms
+    ctx.fillStyle = '#3f6b4a';
+    ctx.beginPath(); ctx.ellipse(-25, -76, 8, 16, 0.16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(25, -76, 8, 16, -0.16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#b5764a';
+    ctx.beginPath(); ctx.arc(-27, -61, 5.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(27, -61, 5.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // the ladle, held out to one side
+    ctx.strokeStyle = '#8a5a33'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(29, -60); ctx.lineTo(40, -80); ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+    ctx.fillStyle = '#b0a68f';
+    ctx.beginPath(); ctx.arc(42, -84, 6.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // head
+    ctx.fillStyle = '#b5764a';
+    ctx.beginPath(); ctx.ellipse(0, -114, 15, 16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // the cook's turban — tall and proud
+    ctx.fillStyle = '#f6f2e6';
+    ctx.beginPath();
+    ctx.moveTo(-16, -122);
+    ctx.bezierCurveTo(-20, -142, 20, -142, 16, -122);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,130,100,0.7)'; ctx.lineWidth = 1.2;
+    for (const dy of [-128, -133]) {
+      ctx.beginPath(); ctx.moveTo(-15, dy); ctx.quadraticCurveTo(0, dy - 4, 15, dy); ctx.stroke();
+    }
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+    // eyes, brows, moustache
+    ctx.fillStyle = '#2a1a10';
+    ctx.beginPath(); ctx.arc(-5.5, -116, 1.9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5.5, -116, 1.9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4a3020'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-9, -121); ctx.lineTo(-2.5, -120); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(9, -121); ctx.lineTo(2.5, -120); ctx.stroke();
+    ctx.fillStyle = '#6b6258';
+    ctx.beginPath();
+    ctx.moveTo(-9, -108);
+    ctx.quadraticCurveTo(0, -113, 9, -108);
+    ctx.quadraticCurveTo(0, -105, -9, -108);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMonkey(ctx, x, baseY, s, t, seed, p) {
+    const bob = Math.sin(t * 1.1 + seed) * 1.1;
+    ctx.save();
+    ctx.fillStyle = 'rgba(40,26,12,0.20)';
+    ctx.beginPath(); ctx.ellipse(x, baseY + 1, 13 * s, 3.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(x, baseY + bob * 0.4);
+    ctx.scale(s, s);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.4;
+
+    const BROWN = '#8a5a33', DARK = '#6b4423', FACE = '#d8ab7c';
+    // tail
+    ctx.strokeStyle = DARK; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-8, -14);
+    ctx.quadraticCurveTo(-21, -18, -19 + p.tail, -32 + p.tail);
+    ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+    // legs
+    ctx.fillStyle = DARK;
+    for (const dx of [-5, 5]) {
+      ctx.beginPath(); ctx.ellipse(dx, -9, 4.2, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    // body
+    ctx.fillStyle = BROWN;
+    ctx.beginPath(); ctx.ellipse(0, -21, 10, 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = FACE;
+    ctx.beginPath(); ctx.ellipse(0.5, -19, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+    // arms
+    ctx.strokeStyle = DARK; ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(-9, -25); ctx.lineTo(-16, -16 + p.arm); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(9, -25); ctx.lineTo(16, -18 + p.arm); ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+    // head
+    ctx.fillStyle = BROWN;
+    ctx.beginPath(); ctx.arc(0, -37, 9.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = FACE;
+    ctx.beginPath(); ctx.ellipse(1, -36, 6.6, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BROWN;
+    for (const dx of [-9.4, 9.4]) {
+      ctx.beginPath(); ctx.arc(dx, -38, 3.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    // face
+    ctx.fillStyle = '#2a1a10';
+    ctx.beginPath(); ctx.arc(-2.2, -39, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(2.8, -39, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0.6, -33, 2.8, 0.25, Math.PI - 0.25); ctx.stroke();
+    ctx.fillStyle = DARK;
+    ctx.beginPath(); ctx.ellipse(0, -44, 5.6, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // a fallen tail feather, lying on the carpet with a small gleam on it
+  function drawFeather(ctx, x, y, s, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
+    ctx.save();
+    ctx.translate(x, y);
+    const g = ctx.createRadialGradient(0, -4, 2, 0, -4, 40 * s);
+    g.addColorStop(0, `rgba(126,232,204,${(0.28 * pulse).toFixed(2)})`);
+    g.addColorStop(1, 'rgba(126,232,204,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, -4, 40 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.scale(s, s);
+    ctx.rotate(-0.42);
+    ctx.strokeStyle = '#efe9d8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-18, 7); ctx.lineTo(8, -6); ctx.stroke();
+    ctx.fillStyle = '#2a7a9e';
+    ctx.beginPath();
+    ctx.moveTo(4, -9); ctx.quadraticCurveTo(19, -16, 22, -3);
+    ctx.quadraticCurveTo(13, -1, 4, -9);
+    ctx.fill();
+    ctx.fillStyle = '#1e5a78';
+    ctx.beginPath(); ctx.ellipse(13, -8, 5.4, 6.8, 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3ecfb2';
+    ctx.beginPath(); ctx.ellipse(13, -8, 2.8, 3.6, 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2c14e';
+    ctx.beginPath(); ctx.ellipse(13, -8, 1.2, 1.9, 0.32, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   // ================================================================== SCENES
   // ------------------------------------------------------------------ GATE
   const gate = (() => {
     const rnd = mulberry32(11);
     const scene = makeScene('gate', 'The Alamgiri Gate');
     scene.exits = [
-      { x: 552, y: 312, w: 88, h: 164, side: 'right', target: 'garden', spawn: { x: 78, y: 448 }, label: 'the Hazuri Bagh gardens' }
+      { x: 552, y: 302, w: 88, h: 122, side: 'right', target: 'garden', spawn: { x: 78, y: 448 }, label: 'the Hazuri Bagh gardens' },
+      { x: 6, y: 300, w: 122, h: 84, side: 'left', target: 'kitchen', spawn: { x: 566, y: 400 }, label: 'the fort kitchens' }
     ];
     scene.hotspots = [
       { x: 500, y: 150, w: 134, h: 152, label: 'the great wooden doors', lines: [
@@ -593,14 +768,21 @@ const Scenes = (() => {
 
     scene.exits = [
       { x: 0, y: 336, w: 46, h: 142, side: 'left', target: 'gate', spawn: { x: 500, y: 436 }, label: 'the Alamgiri Gate' },
-      { x: 594, y: 336, w: 46, h: 142, side: 'right', target: 'terrace', spawn: { x: 78, y: 442 }, label: 'the marble terrace' }
+      { x: 594, y: 326, w: 46, h: 98, side: 'right', target: 'terrace', spawn: { x: 78, y: 442 }, label: 'the marble terrace' }
     ];
     scene.hotspots = [
-      { x: 162, y: 242, w: 88, h: 136, label: 'the old gardener', talk: true, npc: 'gardener' },
+      { x: 162, y: 242, w: 88, h: 136, label: 'the old gardener', talk: true, npc: 'gardener',
+        useOn: {
+          teapot: { action: () => Dialogue.open('gardener') },
+          cardamom: { action: () => Dialogue.open('gardener') }
+        } },
       { x: 230, y: 308, w: 200, h: 68, label: 'the fountain', lines: [
         'The fountain insists on dancing, even when nobody is watching. Respect.'] },
-      { x: 442, y: 226, w: 108, h: 168, label: 'the mango tree', lines: [
-        'Not ripe yet. The fort monkeys follow a very strict schedule.'] },
+      { x: 452, y: 346, w: 118, h: 78, label: 'the fort monkeys', talk: true, npc: 'monkeys',
+        useOn: { feather: { action: () => Dialogue.tradeMango() } } },
+      { x: 444, y: 226, w: 106, h: 124, label: 'the mango tree', lines: [
+        'Not ripe yet. The fort monkeys follow a very strict schedule.',
+        'One mango has ripened early. The monkeys have declared it a national treasure.'] },
       { x: 30, y: 126, w: 200, h: 96, label: 'the marble pavilion', lines: [
         'The white pavilion. Perfect for afternoon daydreams, of which you have many.'] },
       { x: 62, y: 424, w: 180, h: 42, label: 'the flowerbeds', lines: [
@@ -672,6 +854,18 @@ const Scenes = (() => {
         const s = scene.depth(386);
         c.save(); c.translate(96, 386); c.scale(s, s); cypress(c, 0, 0, 110); c.restore();
         c.save(); c.translate(146, 386); c.scale(s, s); cypress(c, 0, 0, 78, '#4e8f4a'); c.restore();
+      } },
+      { y: 412, draw: (c, t) => {
+        // the monkeys, sitting on the only ripe mango in Hazuri Bagh
+        const ms = scene.depth(408) * 1.35;
+        drawMonkey(c, 470, 402, ms, t, 0.0, { arm: 0, tail: 0 });
+        drawMonkey(c, 506, 410, ms, t, 1.7, { arm: 3, tail: 4 });
+        drawMonkey(c, 542, 400, ms, t, 3.1, { arm: -2, tail: -3 });
+        // the mango itself, guarded, on the grass between them
+        c.fillStyle = '#f2a03d';
+        c.beginPath(); c.ellipse(508, 408, 8 * ms, 10 * ms, -0.3, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(247,233,176,0.75)';
+        c.beginPath(); c.ellipse(505, 404, 3 * ms, 4.6 * ms, -0.3, 0, Math.PI * 2); c.fill();
       } }
     ];
     scene.drawBg = function (ctx, t) {
@@ -749,7 +943,7 @@ const Scenes = (() => {
       butterfly(ctx, t, 330, 150, '#f2a03d', 0);
       butterfly(ctx, t, 390, 180, '#7ea8e8', 2.6);
       exitGlow(ctx, 20, 428, t);
-      exitGlow(ctx, 620, 428, t);
+      exitGlow(ctx, 618, 406, t);
     };
     scene.drawFg = function (ctx, t) {
       // framing: foliage cropping the frame, as in the reference shots
@@ -778,7 +972,21 @@ const Scenes = (() => {
     ];
     scene.hotspots = [
       { x: 470, y: 292, w: 70, h: 100, label: 'the palace peacock', lines: [
-        'The palace peacock. He judges everyone, silently — but kindly.'] },
+        'The palace peacock. He judges everyone, silently — but kindly.',
+        'He has been admiring himself since dawn. Show him a puddle and he would pose.'],
+        useOn: {
+          teapot: {
+            lines: [
+              'You hold the teapot up. The peacock catches sight of himself in the polished brass.',
+              '(He goes very still. Then he turns, slowly, to check the hall of mirrors — to be sure.)',
+              '(A long tail feather works itself loose and drifts down to the carpet. He does not notice. He is busy.)'
+            ],
+            action: () => { Game.flags.peacockVain = true; }
+          }
+        } },
+      { x: 514, y: 406, w: 60, h: 46, label: 'a fallen feather', pickup: true, item: 'feather', flag: 'featherTaken',
+        if: () => Game.flags.peacockVain,
+        pickupLines: ['Iridescent, enormous, and completely unguarded. The monkeys will never believe this.'] },
       { x: 148, y: 388, w: 54, h: 36, label: 'the teapot', pickup: true, item: 'teapot', flag: 'teapotTaken',
         pickupLines: ['The second cup is always for whoever wanders by.', 'Today, that will be Chacha Bagh, the gardener.'] },
       { x: 100, y: 386, w: 124, h: 74, label: 'the tea table', lines: [
@@ -866,6 +1074,11 @@ const Scenes = (() => {
         c.fillStyle = '#c05a7a';
         c.beginPath(); c.arc(20, -27.5, 1.4, 0, Math.PI * 2); c.fill();
         c.restore();
+      } },
+      { y: 430, draw: (c, t) => {
+        // the feather only exists once the peacock has been distracted by it
+        if (!Game.flags.peacockVain || Game.flags.featherTaken) return;
+        drawFeather(c, 542, 428, scene.depth(428) * 1.2, t);
       } }
     ];
     scene.drawBg = function (ctx, t) {
@@ -997,5 +1210,183 @@ const Scenes = (() => {
     return scene;
   })();
 
-  return { list: { gate, garden, terrace }, overlay, get gardenerLoaded() { return GardenerSprites.loaded; } };
+
+  // ---------------------------------------------------------------- KITCHEN
+  const kitchen = (() => {
+    const scene = makeScene('kitchen', 'The Shahi Bawarchi Khana', {
+      far:  { y: 306, x0: 150, x1: 490 },
+      near: { y: 476, x0: -40, x1: 680 }
+    });
+    scene.exits = [
+      { x: 594, y: 326, w: 46, h: 98, side: 'right', target: 'gate', spawn: { x: 120, y: 372 }, label: 'the Alamgiri Gate' }
+    ];
+    scene.hotspots = [
+      { x: 348, y: 236, w: 106, h: 118, label: 'Ustad Bawarchi', talk: true, npc: 'cook',
+        useOn: { mango: { action: () => Dialogue.tradeCardamom() } } },
+      { x: 34, y: 148, w: 204, h: 158, label: 'the great hearth', lines: [
+        'The fort has been cooked from this one fire for two hundred years.',
+        'The cook feeds it the way other men feed a favourite cat.'] },
+      { x: 392, y: 176, w: 222, h: 76, label: 'the spice shelf', lines: [
+        'Turmeric, cumin, asafoetida — and a small green jar at the back that is very clearly the cardamom.',
+        'It is not locked up. It is merely *his*.'] },
+      { x: 200, y: 320, w: 430, h: 120, label: 'the long table', lines: [
+        'Scrubbed, scarred, and absolutely not to be leaned on.'] },
+      { x: 300, y: 96, w: 320, h: 78, label: 'the hanging pots', lines: [
+        'Copper enough to feed a wedding. Or a siege.'] }
+    ];
+    scene.props = [
+      { y: 372, draw: (c, t) => drawCook(c, 400, 372, scene.depth(372), t) },
+      { y: 420, draw: (c, t) => {
+        // the long prep table, drawn from its own base
+        const s = scene.depth(420) * 1.35;
+        c.save();
+        c.translate(410, 420);
+        c.scale(s, s);
+        c.fillStyle = '#5c3a1e';
+        c.fillRect(-152, -56, 17, 58);
+        c.fillRect(135, -56, 17, 58);
+        c.fillStyle = '#8a5a33';
+        rr(c, -166, -70, 332, 17, 4); c.fill();
+        c.fillStyle = '#a8763f';
+        rr(c, -166, -70, 332, 6, 3); c.fill();
+        // flour, a board, a knife, a bowl
+        c.fillStyle = 'rgba(244,239,226,0.8)';
+        c.beginPath(); c.ellipse(-104, -72, 27, 8, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#c9a878';
+        rr(c, 14, -80, 76, 12, 3); c.fill();
+        c.fillStyle = '#b0a68f';
+        c.beginPath();
+        c.moveTo(58, -82); c.lineTo(94, -82); c.lineTo(90, -87); c.lineTo(62, -87);
+        c.closePath(); c.fill();
+        c.fillStyle = '#d9a441';
+        c.beginPath(); c.ellipse(134, -76, 20, 9, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#b8863f';
+        c.beginPath(); c.ellipse(134, -74, 15, 6, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+      } },
+      { y: 462, draw: (c, t) => {
+        // a sack of onions, cropping the near left corner
+        const s = scene.depth(462) * 1.25;
+        c.save();
+        c.translate(88, 462);
+        c.scale(s, s);
+        c.fillStyle = '#c9a878';
+        c.beginPath();
+        c.moveTo(-36, 4); c.quadraticCurveTo(-43, -42, -15, -54);
+        c.lineTo(19, -54); c.quadraticCurveTo(43, -40, 36, 4);
+        c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(120,84,44,0.55)'; c.lineWidth = 1.6; c.stroke();
+        c.fillStyle = '#b8863f';
+        c.beginPath(); c.ellipse(-6, -56, 15, 7, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#d9a441';
+        for (const [ox, oy, orr] of [[56, 0, 10], [74, 6, 9], [42, 4, 8]]) {
+          c.beginPath(); c.arc(ox, oy, orr, 0, Math.PI * 2); c.fill();
+        }
+        c.restore();
+      } }
+    ];
+    scene.drawBg = function (ctx, t) {
+      // ceiling beams
+      const cg = ctx.createLinearGradient(0, 0, 0, 100);
+      cg.addColorStop(0, '#4a2f18'); cg.addColorStop(1, '#6b4423');
+      ctx.fillStyle = cg; ctx.fillRect(0, 0, 640, 100);
+      ctx.fillStyle = '#3a2412';
+      for (let bx = 0; bx < 640; bx += 64) ctx.fillRect(bx, 0, 10, 100);
+      // plastered wall
+      const wg = ctx.createLinearGradient(0, 100, 0, 306);
+      wg.addColorStop(0, '#e8d2a2'); wg.addColorStop(0.55, '#ddc08c'); wg.addColorStop(1, '#c9a877');
+      ctx.fillStyle = wg; ctx.fillRect(0, 100, 640, 206);
+      // the hearth, and the only light in the room
+      ctx.fillStyle = '#a8763f';
+      pointedArch(ctx, 136, 306, 216, 182); ctx.fill();
+      ctx.fillStyle = '#7a5230';
+      pointedArch(ctx, 136, 306, 194, 166); ctx.fill();
+      const hg = ctx.createLinearGradient(0, 140, 0, 306);
+      hg.addColorStop(0, '#2a1608'); hg.addColorStop(1, '#502c12');
+      ctx.fillStyle = hg;
+      pointedArch(ctx, 136, 306, 174, 152); ctx.fill();
+      const fl = 0.85 + Math.sin(t * 6.2) * 0.1 + Math.sin(t * 3.3) * 0.07;
+      const fgr = ctx.createRadialGradient(136, 292, 4, 136, 292, 96 * fl);
+      fgr.addColorStop(0, 'rgba(255,222,140,' + (0.9 * fl).toFixed(2) + ')');
+      fgr.addColorStop(0.45, 'rgba(255,150,50,0.32)');
+      fgr.addColorStop(1, 'rgba(255,120,30,0)');
+      ctx.fillStyle = fgr;
+      ctx.beginPath(); ctx.arc(136, 292, 96 * fl, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(102, 304); ctx.lineTo(172, 296); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(106, 296); ctx.lineTo(168, 304); ctx.stroke();
+      for (let i = 0; i < 3; i++) {
+        const fx = 118 + i * 18, fh = 20 + Math.sin(t * 5 + i * 2.1) * 8;
+        ctx.fillStyle = i === 1 ? 'rgba(255,244,196,0.92)' : 'rgba(255,196,110,0.85)';
+        ctx.beginPath();
+        ctx.moveTo(fx - 7, 298);
+        ctx.quadraticCurveTo(fx, 298 - fh * 1.7, fx + 7, 298);
+        ctx.closePath(); ctx.fill();
+      }
+      // hanging copper pots
+      ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(286, 100); ctx.lineTo(640, 100); ctx.stroke();
+      for (const [px2, pr, ph] of [[330, 23, 22], [392, 18, 17], [448, 26, 24], [512, 17, 16], [566, 22, 20], [616, 19, 18]]) {
+        ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(px2, 100); ctx.lineTo(px2, 112); ctx.stroke();
+        const pg = ctx.createRadialGradient(px2 - pr * 0.35, 118, 2, px2, 124, pr * 1.5);
+        pg.addColorStop(0, '#e0a04c'); pg.addColorStop(1, '#8a5220');
+        ctx.fillStyle = pg;
+        ctx.beginPath();
+        ctx.moveTo(px2 - pr, 112);
+        ctx.quadraticCurveTo(px2 - pr * 1.08, 112 + ph * 1.45, px2, 112 + ph);
+        ctx.quadraticCurveTo(px2 + pr * 1.08, 112 + ph * 1.45, px2 + pr, 112);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,236,190,0.4)';
+        ctx.beginPath(); ctx.ellipse(px2 - pr * 0.42, 120, pr * 0.2, ph * 0.34, 0.22, 0, Math.PI * 2); ctx.fill();
+      }
+      // the spice shelf
+      const jr = mulberry32(919);
+      for (const by of [200, 240]) {
+        const cols = ['#c8622e', '#d9a441', '#8a9c4a', '#a8543a', '#c9a06a', '#b8563f'];
+        for (let i = 0; i < 7; i++) {
+          const jx = 402 + i * 30;
+          const jw = 17 + jr() * 5, jh = 15 + jr() * 8;
+          ctx.fillStyle = cols[Math.floor(jr() * cols.length)];
+          rr(ctx, jx, by - jh, jw, jh, 4); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
+          rr(ctx, jx + 2, by - jh + 3, 4, jh - 6, 2); ctx.fill();
+          ctx.fillStyle = '#6b4423';
+          ctx.fillRect(jx + 2, by - jh - 4, jw - 4, 5);
+        }
+        ctx.fillStyle = '#8a5a33'; ctx.fillRect(392, by, 222, 9);
+        ctx.fillStyle = '#a8763f'; ctx.fillRect(392, by, 222, 3);
+      }
+      // the cardamom jar, at the back of the top shelf
+      ctx.fillStyle = '#6f9450';
+      rr(ctx, 566, 178, 20, 22, 4); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      rr(ctx, 569, 181, 4, 16, 2); ctx.fill();
+      ctx.fillStyle = '#4e6b38'; ctx.fillRect(569, 173, 14, 5);
+      // ---- stone floor ----
+      const HORIZON = 306, VPX = 320;
+      const fgd = ctx.createLinearGradient(0, HORIZON, 0, 480);
+      fgd.addColorStop(0, '#9d9382'); fgd.addColorStop(0.3, '#bdb3a0');
+      fgd.addColorStop(0.7, '#d6ccb8'); fgd.addColorStop(1, '#c6bcaa');
+      ctx.fillStyle = fgd; ctx.fillRect(0, HORIZON, 640, 480 - HORIZON);
+      paving(ctx, VPX, HORIZON, [307, 316, 328, 344, 364, 390, 422, 458], 0.10, 0.16);
+      const sg = ctx.createLinearGradient(0, HORIZON, 0, 352);
+      sg.addColorStop(0, 'rgba(70,54,36,0.36)');
+      sg.addColorStop(1, 'rgba(70,54,36,0)');
+      ctx.fillStyle = sg; ctx.fillRect(0, HORIZON, 640, 46);
+      exitGlow(ctx, 618, 406, t);
+    };
+    scene.drawFg = function (ctx, t) {
+      // framing: a beam across the top and herbs hanging off it
+      ctx.fillStyle = '#3a2412';
+      ctx.fillRect(0, 0, 640, 14);
+      fgFoliage(ctx, mulberry32(1123), 660, 510, 84);
+      for (const [hx, hl] of [[74, 48], [106, 64], [140, 42]]) {
+        fgVine(ctx, mulberry32(hx), hx, hl);
+      }
+    };
+    return scene;
+  })();
+
+  return { list: { gate, garden, terrace, kitchen }, overlay, get gardenerLoaded() { return GardenerSprites.loaded; } };
 })();
