@@ -61,19 +61,27 @@ The cursor tells you what will happen:
 The fort is three scenes along a single east–west path. Walk to the glowing
 doorway on either edge to move between them.
 
+Each scene is staged in **perspective**: the walkable floor is a trapezoid that
+recedes toward a vanishing point at the back wall, and the Prince scales with
+distance — small by the wall, large up close. He can walk *behind* mid-ground
+props (the fountain, the tea table) and is occluded by them correctly.
+
 ### 1. The Alamgiri Gate — *dawn*
-Golden sandstone, the great wooden doors, a marble pavilion, and the royal
-pennant. Exit **right** to the gardens.
+A courtyard of converging paving running back to the sandstone wall, with shut
+outer doors to the left and the great gate arch to the right. Exit **right** to
+the gardens.
 
 ### 2. Hazuri Bagh — *the garden, midday*
-Marigolds and roses, a dancing fountain, a not-yet-ripe mango tree, butterflies,
-and **Chacha Bagh**, the old gardener. Exit **left** to the gate, **right** to
-the terrace.
+An open lawn receding to a hedge line, with mowing stripes fanning from the
+vanishing point, a marble fountain mid-ground, a not-yet-ripe mango tree,
+butterflies, and **Chacha Bagh**, the old gardener. Exit **left** to the gate,
+**right** to the terrace.
 
 ### 3. The Marble Terrace — *dusk*
-The hall of mirrors with its five hundred candles, the early moon, a standing
-lantern, the palace peacock (he judges you, kindly), and a tea table set for two.
-Exit **left** to the garden.
+The hall of mirrors along the back, its colonnade meeting a marble floor laid
+with a rose carpet in perspective, the early moon, a standing lantern, the
+palace peacock (he judges you, kindly), and a tea table set for two. Exit
+**left** to the garden.
 
 ---
 
@@ -120,13 +128,14 @@ mi6/
   index.html        — canvas, title overlay, music UI; loads scripts in order
   css/style.css     — page styling, 4:3 letterbox, music menu
   js/audio.js       — WebAudio music engine (three procedural loops + crossfade)
-  js/player.js      — the Prince: sprite loading, walking, idle animation
+  js/player.js      — the Prince: sprites, depth-scaled walking, idle animation
   js/speech.js      — bottom-bar speech ("Speaker: …" lines) + rounded-rect helper
   js/dialogue.js    — inventory (satchel) + the gardener's dialogue tree
-  js/scenes.js      — the three scenes: backgrounds, props, hotspots, exits
+  js/scenes.js      — the three scenes: perspective floors, props, hotspots, exits
   js/input.js       — mouse/keyboard: hover, click-to-walk, dialogue keys
   js/main.js        — boot, title screen, game loop, scene transitions
   assets/           — hand-made sprite sheets for the Prince and the gardener
+  tools/            — sprite-sheet cleanup script (see "Art pipeline" below)
   server.py         — optional no-cache static dev server (port 8000)
   CONTENT-GUIDE.md  — how to add characters, items, music, and scenes as *data*
 ```
@@ -134,6 +143,34 @@ mi6/
 The engine (rendering, camera, dialogue, music, inventory) is code. Everything
 *creative* — who lives here, what they say, what items exist, how the music
 feels — is data. See **CONTENT-GUIDE.md** for the exact templates.
+
+---
+
+## Art pipeline
+
+The sprite sheets arrive as flat RGBA PNGs with a hard binary alpha and a fringe
+of leftover background pixels clinging to the dark line art — which shows up as
+a pale, ragged outline around every character. `tools/clean_sprites.py` fixes
+them in place:
+
+```bash
+python3 tools/clean_sprites.py
+```
+
+It does three things per sheet:
+
+1. **Recolours the silhouette** — every edge pixel takes the average colour of
+   the interior pixels near it, so a light fringe becomes the character's own
+   outline colour (self-adjusting: a white sleeve edge stays white).
+2. **Bleeds colour outward** into the transparent pixels, so filtering never
+   drags black into the edge.
+3. **Softens the alpha edge** slightly, so the silhouette anti-aliases cleanly.
+
+The originals are tracked in git, so `git checkout assets` restores them.
+
+Characters are drawn at Monkey Island proportions — the Prince is 150px tall at
+depth scale 1, about a third of the 480px frame, ranging 108px (back of the
+floor) to 180px (front).
 
 ---
 
@@ -147,24 +184,37 @@ character; the parametric renderer and dialogue/audio systems do the rest.
 
 ## Deployment
 
-The site is configured for **Netlify** (`.netlify/netlify.toml` publishes the
-project root). There's no build step, so any Netlify deploy of this folder just
-works.
+The site is configured for **Netlify** by a tracked root `netlify.toml`
+(`publish = "."`). There's no build step, so deploying this folder just works.
+The CLI's local state lives in the gitignored `.netlify/`.
 
 ---
 
 ## Status & roadmap
 
-**In the game today:** three connected scenes, click-to-walk, look/talk/pickup
-hotspots, a two-item inventory, one NPC with a branching dialogue tree, a
-complete (if tiny) quest, three procedural music tracks with auto-switching, and
-a title screen.
+**In the game today:** three connected scenes staged in Monkey Island-style
+perspective — a trapezoid floor receding to a vanishing point, characters that
+scale with distance, correct occlusion behind mid-ground props, and foreground
+framing that crops the corners. Plus click-to-walk, look/talk/pickup hotspots, a
+two-item inventory, one NPC with a branching dialogue tree, a complete (if tiny)
+quest, three procedural music tracks with auto-switching, and a title screen.
 
-**Natural next steps** (already specced in `CONTENT-GUIDE.md`):
+**Next up — one real puzzle:** *"A Feather for a Mango."* The teapot is only the
+opening move; the gardener has no cardamom, the cook will trade cardamom only for
+a ripe mango, and the monkeys who hoard the mangoes will trade only for the
+peacock's tail feather — which you get by angling the standing lantern so the
+peacock falls in love with his reflection in the hall of mirrors. This needs:
+
+- a **"use X on Y"** verb (today the Prince can only look, talk and pick up)
+- **multi-NPC dialogue** (`Dialogue.open()` currently always opens the gardener)
+- a **fourth scene** — the fort kitchen — for the cook
+- a general NPC renderer (the gardener is currently a one-off)
+
+**Also on the list:**
 
 - per-character speech-blip voices (the voice specs are ready, the synth is planned)
-- more characters (the gatekeeper, a cook, a wandering singer, a monkey…)
-- more items and puzzles that check `Game.flags` and inventory
+- more characters (the gatekeeper, a wandering singer…)
+- walk cycles for NPCs (the gardener is still a single static pose)
 - hand-painted sprite sheets replacing the procedural props over time
 
 The specs in `CONTENT-GUIDE.md` are the contract — any of those upgrades can
