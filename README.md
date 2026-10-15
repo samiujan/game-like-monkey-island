@@ -87,15 +87,15 @@ the gardens, **left** through the doors into the kitchens.
 ### 2. Hazuri Bagh — *the garden, midday*
 An open lawn receding to a hedge line, with mowing stripes fanning from the
 vanishing point, a marble fountain mid-ground, a mango tree with three monkeys
-sitting on the only ripe fruit, butterflies, and **Chacha Bagh**, the old
-gardener — who waters, and now and then wipes his brow. Exit **left** to the
-gate, **right** to the terrace.
+milling about on the grass, butterflies, and **Chacha Bagh**, the old gardener —
+who potters between his beds, waters, and now and then wipes his brow. Exit
+**left** to the gate, **right** to the terrace.
 
 ### 3. The Marble Terrace — *dusk*
 The hall of mirrors along the back, its colonnade meeting a marble floor laid
 with a rose carpet in perspective, the early moon, a standing lantern, the
-palace peacock (he judges you, kindly), and a tea table set for two. Exit
-**left** to the garden.
+palace peacock strutting up and down it (he judges you, kindly), and a tea table
+set for two. Exit **left** to the garden.
 
 ### 4. The Shahi Bawarchi Khana — *the fort kitchens*
 A great hearth, copper pots hanging from the beams, two shelves of spice jars,
@@ -161,7 +161,8 @@ mi6/
   js/audio.js       — WebAudio music engine (three procedural loops + crossfade)
   js/player.js      — the Prince: sprites, depth-scaled walking, idle animation
   js/speech.js      — bottom-bar speech ("Speaker: …" lines) + rounded-rect helper
-  js/dialogue.js    — inventory (satchel) + the gardener's dialogue tree
+  js/actors.js      — sprite sets, idle blending, and the wandering NPCs
+  js/dialogue.js    — inventory (satchel) + every character's dialogue tree
   js/scenes.js      — the four scenes: perspective floors, props, NPCs, hotspots
   js/input.js       — mouse/keyboard: hover, click-to-walk, dialogue keys
   js/main.js        — boot, title screen, game loop, scene transitions
@@ -202,6 +203,24 @@ python3 tools/slice_sheet.py assets/_sheets/cook.png assets/_frames/cook
    crosshair marks by area, then groups them into rows.
 4. **Crops, keys and cleans** each one: the same fringe-removal and alpha
    softening as below.
+
+### Actors: idle sets and walking
+
+`js/actors.js` owns the painted characters. Each has an ordered set of
+same-body poses and, where the sheet provides one, a five-frame walk cycle.
+
+An **actor** carries a position, a facing, a walk phase and a *home patch*. It
+stands still for a few seconds, picks a spot inside the patch, walks to it, and
+repeats. There is deliberately no pathfinding: each patch is chosen clear of
+props, so every hop is a straight line — cheap, and it cannot fail.
+
+The hotspot and the depth-sorted prop that stand for an actor are dragged along
+with it, so a wandering character stays clickable and still sorts correctly
+against the Prince. Clicking someone holds them still for ten seconds, so they
+are not halfway across the lawn by the time he arrives.
+
+The cook is deliberately not an actor — he never leaves his table, so he only
+needs the idle blender.
 
 ### Idle sets
 
@@ -288,9 +307,8 @@ catches his own reflection. Three procedural music tracks auto-switch by scene.
 
 **Known rough edges**
 
-- The NPCs **idle but do not walk**. The sheets carry full walk cycles for all
-  of them, but nothing drives an NPC anywhere: they have no position of their
-  own, and their hotspots are fixed rectangles matched to where the art sits.
+- NPCs wander on straight lines inside a fixed patch rather than navigating:
+  they will not path around a prop, so their patches are picked to be clear.
 - The pathfinder plans around the props but does not *understand* them — a prop
   the Prince should walk behind rather than around has to be left unblocked.
 - The four scenes are hand-painted backgrounds, so moving a prop means repainting
