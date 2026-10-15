@@ -54,6 +54,7 @@ class Player {
     this.moving = false;
     this.pending = null;  // action fired on arrival: {type:'exit'|'look', ...}
     this.via = [];        // waypoints to walk around an obstacle first
+    this.rush = false;    // double-clicked: walk at twice the speed
   }
 
   scaleAt(scene, y) {
@@ -74,7 +75,7 @@ class Player {
     this.moving = true;
     if (Math.abs(dx) > 2) this.facing = dx > 0 ? 1 : -1;
 
-    const speed = 95 * this.scaleAt(scene, this.y);
+    const speed = 95 * this.scaleAt(scene, this.y) * (this.rush ? 2 : 1);
     const step = speed * dt;
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
@@ -88,8 +89,9 @@ class Player {
 
   // `via` is a detour to take BEFORE the target, so the first waypoint becomes
   // the current target and the real destination goes on the end of the queue.
-  walkTo(x, y, pending, via) {
+  walkTo(x, y, pending, via, rush) {
     this.pending = pending || null;
+    this.rush = !!rush;
     if (via && via.length) {
       this.via = via.slice();
       const first = this.via.shift();
@@ -147,8 +149,13 @@ class Player {
       Inventory.letGo();
       Game.held = null;
       if (entry) {
-        if (entry.lines) Speech.say(entry.lines, 'Prince');
-        if (entry.action) entry.action();
+        // a useOn entry can insist the world be ready for it first
+        if (entry.needs && !entry.needs()) {
+          Speech.say(entry.refuse || ['That is not what it wants just now.'], 'Prince');
+        } else {
+          if (entry.lines) Speech.say(entry.lines, 'Prince');
+          if (entry.action) entry.action();
+        }
       } else {
         const item = Inventory.items[p.item].label;
         Speech.say([refusal(item, hs.label)], 'Prince');

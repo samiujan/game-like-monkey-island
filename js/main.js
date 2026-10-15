@@ -26,6 +26,8 @@ const Game = {
     p.y = p.ty = spawn.y;
     p.moving = false;
     p.pending = null;
+    p.via = [];
+    p.rush = false;
     p.facing = spawn.x < 320 ? 1 : -1;
     Speech.clear();
     // refresh hover so the status line matches the new scene immediately

@@ -87,6 +87,122 @@ const Scenes = (() => {
       depth(y) {
         return SCALE_FAR + (SCALE_NEAR - SCALE_FAR) * t01(y);
       },
+      // A* across a coarse grid of the walkable floor, with the props punched
+      // out as holes. Returns the waypoints to visit BEFORE the destination,
+      // so a caller can simply walk them in order. Trying to dodge obstacles
+      // with hand-rolled dog-legs kept producing detours that crossed the very
+      // prop they were avoiding; searching properly does not.
+      findPath(ax, ay, bx, by) {
+        const CELL = 8, PAD = 12;
+        const gx0 = Math.floor(G.far.x0) - CELL, gy0 = Math.floor(G.far.y) - CELL;
+        const cols = Math.ceil((G.near.x1 - gx0) / CELL) + 2;
+        const rows = Math.ceil((G.near.y - gy0) / CELL) + 2;
+        const cellX = (x) => Math.round((x - gx0) / CELL);
+        const cellY = (y) => Math.round((y - gy0) / CELL);
+        const xOf = (c) => gx0 + c * CELL;
+        const yOf = (r) => gy0 + r * CELL;
+        const key = (c, r) => r * cols + c;
+        const walkable = (c, r) => {
+          if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
+          const x = xOf(c), y = yOf(r);
+          if (y < G.far.y || y > G.near.y) return false;
+          const sp = span(y);
+          if (x < sp.x0 + PAD || x > sp.x1 - PAD) return false;
+          for (const b of this.blocked) {
+            if (x > b.x0 - PAD && x < b.x1 + PAD && y > b.y0 - PAD && y < b.y1 + PAD) return false;
+          }
+          return true;
+        };
+        // the nearest cell a body can actually stand in
+        const nearestOpen = (x, y) => {
+          const c0 = cellX(x), r0 = cellY(y);
+          let best = null, bestD = Infinity;
+          for (let rad = 0; rad <= 12; rad++) {
+            for (let dr = -rad; dr <= rad; dr++) {
+              for (let dc = -rad; dc <= rad; dc++) {
+                if (Math.max(Math.abs(dc), Math.abs(dr)) !== rad) continue;
+                const c = c0 + dc, r = r0 + dr;
+                if (!walkable(c, r)) continue;
+                const d = (xOf(c) - x) ** 2 + (yOf(r) - y) ** 2;
+                if (d < bestD) { bestD = d; best = { c: c, r: r }; }
+              }
+            }
+            if (best) break;
+          }
+          return best;
+        };
+
+        const start = nearestOpen(ax, ay), goal = nearestOpen(bx, by);
+        if (!start || !goal) return [];
+        const open = [start];
+        const gs = new Map();
+        const from = new Map();
+        const closed = new Set();
+        gs.set(key(start.c, start.r), 0);
+        const heur = (c, r) => Math.hypot(c - goal.c, r - goal.r);
+        let found = null;
+        while (open.length) {
+          let bi = 0, bf = Infinity;
+          for (let i = 0; i < open.length; i++) {
+            const n = open[i];
+            const f = gs.get(key(n.c, n.r)) + heur(n.c, n.r);
+            if (f < bf) { bf = f; bi = i; }
+          }
+          const cur = open.splice(bi, 1)[0];
+          const ck = key(cur.c, cur.r);
+          if (cur.c === goal.c && cur.r === goal.r) { found = ck; break; }
+          if (closed.has(ck)) continue;
+          closed.add(ck);
+          for (let dc = -1; dc <= 1; dc++) {
+            for (let dr = -1; dr <= 1; dr++) {
+              if (!dc && !dr) continue;
+              const nc = cur.c + dc, nr = cur.r + dr;
+              if (!walkable(nc, nr)) continue;
+              // no cutting a corner diagonally through a gap
+              if (dc && dr && (!walkable(cur.c + dc, cur.r) || !walkable(cur.c, cur.r + dr))) continue;
+              const nk = key(nc, nr);
+              if (closed.has(nk)) continue;
+              const ng = gs.get(ck) + ((dc && dr) ? 1.414 : 1);
+              if (gs.has(nk) && gs.get(nk) <= ng) continue;
+              gs.set(nk, ng);
+              from.set(nk, ck);
+              open.push({ c: nc, r: nr });
+            }
+          }
+        }
+        if (found === null) return [];
+
+        const cells = [];
+        for (let k = found; k !== undefined; k = from.get(k)) {
+          cells.push({ x: xOf(k % cols), y: yOf(Math.floor(k / cols)) });
+        }
+        cells.reverse();
+
+        // string-pull: skip any waypoint we can see straight past
+        const clear = (p, q) => {
+          const steps = Math.max(2, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / (CELL * 0.5)));
+          for (let i = 1; i < steps; i++) {
+            const t = i / steps;
+            if (!walkable(cellX(p.x + (q.x - p.x) * t), cellY(p.y + (q.y - p.y) * t))) return false;
+          }
+          return true;
+        };
+        const out = [];
+        let anchor = { x: ax, y: ay };
+        let i = 1;
+        while (i < cells.length) {
+          let j = cells.length - 1;
+          while (j > i && !clear(anchor, cells[j])) j--;
+          out.push(cells[j]);
+          anchor = cells[j];
+          i = j + 1;
+        }
+        // the last cells only approximate the destination; the caller has it
+        while (out.length && Math.hypot(out[out.length - 1].x - bx, out[out.length - 1].y - by) < CELL * 1.6) {
+          out.pop();
+        }
+        return out;
+      },
       // shove a point out of anything solid, along its shallowest axis, so the
       // prince slides along a table instead of standing inside it
       pushOut(x, y) {
@@ -915,13 +1031,17 @@ const Scenes = (() => {
       { x: 0, y: 340, w: 46, h: 138, side: 'left', target: 'garden', spawn: { x: 560, y: 445 }, label: 'the Hazuri Bagh gardens' }
     ];
     scene.hotspots = [
-      { x: 470, y: 292, w: 70, h: 100, label: 'the palace peacock', lines: [
-        'The palace peacock. He judges everyone, silently — but kindly.',
-        'He has been admiring himself since dawn. Show him a puddle and he would pose.'],
+      { x: 470, y: 292, w: 70, h: 100, label: 'the palace peacock', talk: true, npc: 'peacock',
         useOn: {
           teapot: {
+            // vanity is not curiosity: he has to want to see himself first
+            needs: () => Game.flags.peacockCurious,
+            refuse: [
+              'You hold the teapot up. The peacock does not look.',
+              '(He has never once needed to look. He already knows what he looks like.)'
+            ],
             lines: [
-              'You hold the teapot up. The peacock catches sight of himself in the polished brass.',
+              'The peacock catches sight of himself in the polished brass.',
               '(He goes very still. Then he turns, slowly, to check the hall of mirrors — to be sure.)',
               '(A long tail feather works itself loose and drifts down to the carpet. He does not notice. He is busy.)'
             ],
@@ -931,8 +1051,6 @@ const Scenes = (() => {
       { x: 514, y: 406, w: 60, h: 46, label: 'a fallen feather', pickup: true, item: 'feather', flag: 'featherTaken',
         if: () => Game.flags.peacockVain,
         pickupLines: ['Iridescent, enormous, and completely unguarded. The monkeys will never believe this.'] },
-      { x: 148, y: 388, w: 54, h: 36, label: 'the teapot', pickup: true, item: 'teapot', flag: 'teapotTaken',
-        pickupLines: ['The second cup is always for whoever wanders by.', 'Today, that will be Chacha Bagh, the gardener.'] },
       { x: 100, y: 386, w: 124, h: 74, label: 'the tea table', lines: [
         'Two cups. The second is always for whoever happens to wander by.'] },
       { x: 60, y: 150, w: 490, h: 152, label: 'the hall of mirrors', lines: [
@@ -982,19 +1100,6 @@ const Scenes = (() => {
         c.fillStyle = '#8a5a33';
         c.beginPath(); c.moveTo(-20, -26); c.lineTo(30, -26); c.lineTo(24, -10); c.lineTo(-14, -10); c.closePath(); c.fill();
         c.fillStyle = '#6b4423'; c.fillRect(-12, -10, 34, 10);
-        if (!Game.flags.teapotTaken) {
-          c.fillStyle = '#f4efe2';
-          c.beginPath(); c.ellipse(-2, -27, 6.4, 2.8, 0, 0, Math.PI * 2); c.fill();
-          c.fillRect(-7, -33, 10, 6);
-          c.beginPath(); c.ellipse(-4.5, -33, 4, 3, 0, Math.PI, 0); c.fill();
-          c.beginPath(); c.ellipse(2.5, -33, 4, 3, 0, Math.PI, 0); c.fill();
-          c.strokeStyle = 'rgba(255,255,255,0.55)';
-          c.lineWidth = 1;
-          c.beginPath();
-          c.moveTo(-2, -37);
-          c.quadraticCurveTo(1 + Math.sin(t * 2) * 2, -42, -2, -47);
-          c.stroke();
-        }
         c.fillStyle = '#f4efe2';
         c.beginPath(); c.arc(20, -27.5, 2.7, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#c05a7a';
@@ -1149,6 +1254,9 @@ const Scenes = (() => {
     scene.hotspots = [
       { x: 348, y: 236, w: 106, h: 118, label: 'Ustad Bawarchi', talk: true, npc: 'cook',
         useOn: { mango: { action: () => Dialogue.tradeCardamom() } } },
+      { x: 544, y: 294, w: 70, h: 38, label: 'the big copper teapot', pickup: true, item: 'teapot', flag: 'teapotTaken',
+        pickupLines: ['Heavy, copper, and polished to a mirror shine.',
+                      'The cook is not looking. Today, that will be Chacha Bagh, the gardener.'] },
       { x: 34, y: 148, w: 204, h: 158, label: 'the great hearth', lines: [
         'The fort has been cooked from this one fire for two hundred years.',
         'The cook feeds it the way other men feed a favourite cat.'] },
@@ -1191,6 +1299,27 @@ const Scenes = (() => {
         c.beginPath(); c.ellipse(134, -76, 20, 9, 0, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#b8863f';
         c.beginPath(); c.ellipse(134, -74, 15, 6, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+      } },
+      { y: 421, draw: (c, t) => {
+        // the copper teapot, sitting on the long table
+        if (Game.flags.teapotTaken) return;
+        const ts = scene.depth(421) * 1.35;
+        c.save();
+        c.translate(578, 320);
+        c.scale(ts, ts);
+        c.fillStyle = '#d9903f';
+        c.beginPath(); c.ellipse(0, 0, 19, 13, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,240,200,0.55)';
+        c.beginPath(); c.ellipse(-6, -4, 6.5, 4, -0.3, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#c47a2e';
+        c.beginPath(); c.arc(0, -11, 9.5, Math.PI, 0); c.fill();
+        c.fillStyle = '#f2c14e';
+        c.beginPath(); c.arc(0, -19, 3.4, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#c47a2e'; c.lineWidth = 5;
+        c.beginPath(); c.moveTo(-17, -2); c.lineTo(-29, -13); c.stroke();
+        c.strokeStyle = '#8a5a33'; c.lineWidth = 3.4;
+        c.beginPath(); c.arc(18, -2, 9.5, -1.2, 1.2); c.stroke();
         c.restore();
       } },
       { y: 462, draw: (c, t) => {

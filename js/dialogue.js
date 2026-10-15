@@ -162,7 +162,7 @@ const Dialogue = (() => {
     Game.flags.questStarted = true;
     Speech.say([
       'Well... my bones ache for a proper cup of cardamom tea, and the old kettle walked off years ago.',
-      'The teapot of the marble terrace never runs dry. And the cardamom — that, only the cook will part with. Good luck with that one.'
+      'The kitchens keep a great copper teapot. And the cardamom — that, only the cook will part with. Good luck with that one.'
     ], 'Chacha Bagh');
   }
 
@@ -196,7 +196,7 @@ const Dialogue = (() => {
     if (f.questStarted) {
       let say;
       if (!Inventory.has('teapot')) {
-        say = 'The teapot of the marble terrace... and the cardamom from the cook. Whenever your royal schedule allows.';
+        say = 'The great copper teapot from the kitchens... and the cardamom. Whenever your royal schedule allows.';
       } else {
         say = 'The pot! Now the cardamom. The cook keeps it, and the cook does not give.';
       }
@@ -316,8 +316,45 @@ const Dialogue = (() => {
       ]);
   }
 
-  const TREES = { gardener: gardenerRoot, cook: cookRoot, monkeys: monkeysRoot };
-  const SPEAKERS = { gardener: 'Chacha Bagh', cook: 'Ustad Bawarchi', monkeys: 'The fort monkeys' };
+  // --- the peacock --------------------------------------------------------
+  // Flattery does not work on a bird who already agrees with you. The way in
+  // is to plant a doubt: he has to want to look before a mirror is any use.
+  function peacockDoubt() {
+    Game.flags.peacockCurious = true;
+    Speech.say([
+      '(The peacock stops. He turns his head, slowly, towards the hall of mirrors.)',
+      '(It is a terrible question to put to a vain bird, and it has landed.)',
+      '(He is now extremely interested in how he looks — and has nothing to look into.)'
+    ], 'The palace peacock');
+  }
+
+  function peacockRoot() {
+    const f = Game.flags;
+    if (f.peacockVain) return node(
+      '(The peacock is admiring himself. He has been at it for some time.)',
+      [
+        { text: 'You look magnificent.', respond: ['(He agrees. He agrees so completely that he does not turn round.)'] },
+        { text: 'Leave him to it.', end: true }
+      ]);
+    if (f.peacockCurious) return node(
+      '(The peacock keeps glancing towards the hall of mirrors. He is thinking about it.)',
+      [
+        { text: 'Something shiny would help.', respond: ['(He looks at you. Then at your satchel. Then at you again.)'] },
+        { text: 'Soon.', end: true }
+      ]);
+    return node(
+      '(The peacock regards you the way one regards weather. He judges everyone, silently — but kindly.)',
+      [
+        { text: 'You are the finest bird in the fort.', respond: [
+          '(He inclines his head, graciously. He has heard this before.)',
+          '(It is clear that flattery will get you nowhere he has not already been.)'] },
+        { text: 'Have you looked at yourself lately?', action: peacockDoubt },
+        { text: 'Never mind.', end: true }
+      ]);
+  }
+
+  const TREES = { gardener: gardenerRoot, cook: cookRoot, monkeys: monkeysRoot, peacock: peacockRoot };
+  const SPEAKERS = { gardener: 'Chacha Bagh', cook: 'Ustad Bawarchi', monkeys: 'The fort monkeys', peacock: 'The palace peacock' };
   let curSpeaker = SPEAKERS.gardener;
 
   return {

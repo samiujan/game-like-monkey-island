@@ -16,6 +16,25 @@ const Input = (() => {
   function pick(x, y) {
     const scene = Game.scene;
     if (!scene) return { type: 'none', label: '', ref: null };
+    const held0 = Inventory.held;
+
+    // The whole left and right edge is a doorway, not just a painted notch —
+    // unless the satchel is under the pointer, which keeps its own meaning.
+    let overSatchel = false;
+    for (const r of (Inventory._rects || [])) {
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) { overSatchel = true; break; }
+    }
+    if (!overSatchel) {
+      const EDGE = 58;
+      const side = x <= EDGE ? 'left' : (x >= 640 - EDGE ? 'right' : null);
+      if (side) {
+        const ex = scene.exits.find((e) => e.side === side);
+        if (ex) {
+          const label = 'Walk to ' + ex.label;
+          return { type: 'exit', label: held0 ? label : label, ref: ex, edge: true };
+        }
+      }
+    }
     for (const ex of scene.exits) {
       if (x >= ex.x && x <= ex.x + ex.w && y >= ex.y && y <= ex.y + ex.h)
         return { type: 'exit', label: 'Walk to ' + ex.label, ref: ex };
@@ -41,59 +60,16 @@ const Input = (() => {
     return Game.scene.clamp(p.x, p.y);
   }
 
-  function segHitsRect(ax, ay, bx, by, r) {
-    const steps = 40;
-    for (let i = 1; i < steps; i++) {
-      const t = i / steps;
-      const x = ax + (bx - ax) * t, y = ay + (by - ay) * t;
-      if (x > r.x0 - 2 && x < r.x1 + 2 && y > r.y0 - 2 && y < r.y1 + 2) return true;
-    }
-    return false;
-  }
-
-  // If the straight line to the target crosses something solid, go round it in
-  // an L: step out sideways at the current depth, then along at the target's
-  // depth. Candidate sides are tried in order of preference (the side the
-  // target is on first) and the first one whose every leg is clear wins —
-  // otherwise the "detour" crosses the very prop it is avoiding.
-  function routeTo(ax, ay, bx, by) {
-    const scene = Game.scene;
-    const pad = 14;
-    for (const r of (scene.blocked || [])) {
-      if (!segHitsRect(ax, ay, bx, by, r)) continue;
-      const cands = [];
-      if (bx > r.x1) cands.push(r.x1 + pad);
-      if (bx < r.x0) cands.push(r.x0 - pad);
-      cands.push(r.x0 - pad, r.x1 + pad);
-      const fit = (pts) => {
-        let from = { x: ax, y: ay };
-        for (const p of pts) {
-          if (segHitsRect(from.x, from.y, p.x, p.y, r)) return false;
-          from = p;
-        }
-        return !segHitsRect(from.x, from.y, bx, by, r);
-      };
-      const clean = (pts) => pts.map((p) => {
-        const c = scene.clamp(p.x, p.y);
-        return scene.pushOut(c.x, c.y);
-      });
-      for (const gx of cands) {
-        const pts = [{ x: gx, y: ay }, { x: gx, y: by }];
-        if (fit(pts)) return clean(pts);
-      }
-      const gx = bx >= (r.x0 + r.x1) / 2 ? r.x1 + pad : r.x0 - pad;
-      return clean([{ x: gx, y: ay }, { x: gx, y: by }]);
-    }
-    return [];
-  }
-
-  // walk somewhere sensible: never inside a prop, around one if need be
-  function goTo(x, y, pending) {
+  // walk somewhere sensible: never inside a prop, and round one if need be
+  function goTo(x, y, pending, rush) {
     const scene = Game.scene;
     const safe = scene.pushOut(x, y);
-    const via = routeTo(Game.player.x, Game.player.y, safe.x, safe.y);
-    Game.player.walkTo(safe.x, safe.y, pending, via);
+    const path = scene.findPath(Game.player.x, Game.player.y, safe.x, safe.y);
+    Game.player.walkTo(safe.x, safe.y, pending, path, rush);
   }
+
+  // double-clicking the floor sets him off at a run
+  let lastClick = { t: -1e9, x: 0, y: 0 };
 
   return {
     get mx() { return mx; },
@@ -138,14 +114,19 @@ const Input = (() => {
 
         if (Game.fade) return;
 
+        const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        const rush = (now - lastClick.t < 340) && Math.hypot(mx - lastClick.x, my - lastClick.y) < 18;
+        lastClick = { t: now, x: mx, y: my };
+
         const h = pick(mx, my);
         const pw = clampWalk({ x: mx, y: my });
         if (h.type === 'exit') {
           Inventory.letGo();
           Game.held = null;
           const ex = h.ref;
-          const c = Game.scene.clamp(ex.x + ex.w / 2, pw.y);
-          goTo(c.x, c.y, { type: 'exit', exit: ex });
+          const edgeX = h.edge ? (ex.side === 'left' ? 6 : 634) : ex.x + ex.w / 2;
+          const c = Game.scene.clamp(edgeX, pw.y);
+          goTo(c.x, c.y, { type: 'exit', exit: ex }, rush);
         } else if (h.type === 'hotspot') {
           const hs = h.ref;
           let pending = { type: 'look', hs };
@@ -161,9 +142,9 @@ const Input = (() => {
             tx += side * 58;
           } else if (hs.pickup) pending = { type: 'pickup', hs };
           const c = Game.scene.clamp(tx, pw.y);
-          goTo(c.x, c.y, pending);
+          goTo(c.x, c.y, pending, rush);
         } else {
-          goTo(pw.x, pw.y, null);
+          goTo(pw.x, pw.y, null, rush);
         }
       });
       window.addEventListener('keydown', (e) => {
