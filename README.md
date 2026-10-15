@@ -154,8 +154,9 @@ mi6/
   js/scenes.js      — the four scenes: perspective floors, props, NPCs, hotspots
   js/input.js       — mouse/keyboard: hover, click-to-walk, dialogue keys
   js/main.js        — boot, title screen, game loop, scene transitions
-  assets/           — hand-made sprite sheets for the Prince and the gardener
-  tools/            — sprite-sheet cleanup script (see "Art pipeline" below)
+  assets/           — sprite sheets (prince, gardener, cook, monkey, peacock)
+  assets/_sheets/   — the AI contact sheets the sprites were cut from
+  tools/            — sheet slicing + cleanup scripts (see "Art pipeline" below)
   server.py         — optional no-cache static dev server (port 8000)
   CONTENT-GUIDE.md  — how to add characters, items, music, and scenes as *data*
 ```
@@ -168,7 +169,43 @@ feels — is data. See **CONTENT-GUIDE.md** for the exact templates.
 
 ## Art pipeline
 
-The sprite sheets arrive as flat RGBA PNGs with a hard binary alpha and a fringe
+There are two kinds of sprite source, and a tool for each.
+
+### Contact sheets → individual sprites
+
+New characters arrive as AI-generated contact sheets in `assets/_sheets/`. They
+have a **fake-transparency checkerboard baked into the pixels** — the model draws
+the checker rather than leaving real alpha — plus stray crosshair registration
+marks between the figures. `tools/slice_sheet.py` handles all of that:
+
+```bash
+python3 tools/slice_sheet.py assets/_sheets/cook.png assets/_frames/cook
+```
+
+1. **Keys the checkerboard out** by flood-filling from the border. Doing it by
+   connectivity rather than by colour is what keeps a figure's enclosed white
+   kurta, apron or cap intact.
+2. **Learns the two checker tones per sheet** with k-means on the border pixels —
+   the grey varies from 160 to 186 between sheets, so hardcoding it fails.
+3. **Finds each figure as a connected component**, dropping specks and the
+   crosshair marks by area, then groups them into rows.
+4. **Crops, keys and cleans** each one: the same fringe-removal and alpha
+   softening as below.
+
+`tools/build_sprites.py` then maps those frames onto the filenames the game
+loads, bottom-aligning each one and centring it on its own **centre of mass** —
+not its bounding box, which swings about with a held prop and makes the Prince
+jitter sideways as he walks. It deliberately does *not* rescale: within a sheet
+the generator already draws every figure at one scale, and forcing a common
+height would blow a seated monkey up to the size of a walking one.
+
+```bash
+python3 tools/build_sprites.py
+```
+
+### Hand-made sheets → cleaned
+
+The original sheets arrive as flat RGBA PNGs with a hard binary alpha and a fringe
 of leftover background pixels clinging to the dark line art — which shows up as
 a pale, ragged outline around every character. `tools/clean_sprites.py` fixes
 them in place:
@@ -187,6 +224,7 @@ It does three things per sheet:
 3. **Softens the alpha edge** slightly, so the silhouette anti-aliases cleanly.
 
 The originals are tracked in git, so `git checkout assets` restores them.
+`assets/_frames/` is derived and gitignored — regenerate it from `_sheets`.
 
 Characters are drawn at Monkey Island proportions — the Prince is 150px tall at
 depth scale 1, about a third of the 480px frame, ranging 108px (back of the
@@ -215,22 +253,26 @@ The CLI's local state lives in the gitignored `.netlify/`.
 **In the game today:** four connected scenes staged in Monkey Island-style
 perspective — a trapezoid floor receding to a vanishing point, characters that
 scale with distance, correct occlusion behind mid-ground props, and foreground
-framing that crops the corners. Plus click-to-walk, look/talk/pickup hotspots, a
+framing that crops the corners. Plus click-to-walk with **obstacle avoidance**, a
 **"use X on Y" verb** with item selection, a two-item satchel, **three NPCs with
-branching dialogue**, and one complete puzzle with a real trick in it: *A
-Feather for a Mango*. Three procedural music tracks auto-switch by scene.
+branching dialogue**, and one complete puzzle with a real trick in it: *A Feather
+for a Mango*. Five characters are fully sprite-based — the Prince, Chacha Bagh,
+the cook, the monkeys and the peacock — and the peacock even changes pose when he
+catches his own reflection. Three procedural music tracks auto-switch by scene.
 
 **Known rough edges**
 
-- The cook and the monkeys are **painted with canvas paths**, not sprite sheets —
-  they read as hand-drawn but are simpler than the Prince and Chacha Bagh.
-- The gardener is one static pose; no NPC has a walk cycle.
-- `scene.blocked[]` is still unused, so the Prince can walk through the long
-  table rather than round it.
+- The Prince has 5 walk frames and Chacha Bagh only one pose, so **no NPC has a
+  walk cycle** — the sheets have full cycles for everyone, they just aren't wired
+  up yet.
+- Obstacle avoidance is one dog-leg around one rectangle, not real pathfinding.
+  It handles the props the fort has; a maze would defeat it.
+- The four scenes are hand-painted backgrounds, so moving a prop means repainting
+  its surroundings rather than moving a sprite.
 
 **Also on the list:**
 
-- sprite sheets for the cook and the monkeys, to match the existing two
+- walk cycles for the NPCs (the frames are already sliced and waiting)
 - per-character speech-blip voices (the voice specs are ready, the synth is planned)
 - more characters (a gatekeeper, a wandering singer…)
 - hand-painted sprite sheets replacing the procedural props over time
