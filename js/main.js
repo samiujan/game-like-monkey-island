@@ -314,6 +314,7 @@ window.addEventListener('load', () => {
   Input.init();
   PrinceSprites.load();
   GardenerSprites.load();
+  ActorSprites.load();
   setupMusicUI();
   requestAnimationFrame(loop);
 });

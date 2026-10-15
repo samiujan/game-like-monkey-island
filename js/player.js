@@ -53,6 +53,7 @@ class Player {
     this.phase = 0;       // walk-cycle phase
     this.moving = false;
     this.pending = null;  // action fired on arrival: {type:'exit'|'look', ...}
+    this.via = [];        // waypoints to walk around an obstacle first
   }
 
   scaleAt(scene, y) {
@@ -67,9 +68,7 @@ class Player {
       this.x = this.tx;
       this.y = this.ty;
       this.moving = false;
-      const p = this.pending;
-      this.pending = null;
-      if (p) this.fire(p);
+      this.advance();
       return;
     }
     this.moving = true;
@@ -79,21 +78,44 @@ class Player {
     const step = speed * dt;
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
-    // keep him on the trapezoid, not merely inside a rectangle
+    // keep him on the trapezoid, and out of anything solid standing on it
     const c = scene.clamp(this.x, this.y);
     this.x = c.x; this.y = c.y;
+    const o = scene.pushOut(this.x, this.y);
+    this.x = o.x; this.y = o.y;
     this.phase += step * 0.105;
   }
 
-  walkTo(x, y, pending) {
-    this.tx = x;
-    this.ty = y;
+  // `via` is a detour to take BEFORE the target, so the first waypoint becomes
+  // the current target and the real destination goes on the end of the queue.
+  walkTo(x, y, pending, via) {
     this.pending = pending || null;
-    if (!this.moving && Math.hypot(this.tx - this.x, this.ty - this.y) < 1.5) {
-      const p = this.pending;
-      this.pending = null;
-      if (p) this.fire(p);
+    if (via && via.length) {
+      this.via = via.slice();
+      const first = this.via.shift();
+      this.via.push({ x: x, y: y });
+      this.tx = first.x;
+      this.ty = first.y;
+    } else {
+      this.via = [];
+      this.tx = x;
+      this.ty = y;
     }
+    if (!this.moving && Math.hypot(this.tx - this.x, this.ty - this.y) < 1.5) this.advance();
+  }
+
+  // head for the next waypoint, or fire the action if the walk is over
+  advance() {
+    if (this.via && this.via.length) {
+      const next = this.via.shift();
+      this.tx = next.x;
+      this.ty = next.y;
+      this.moving = true;
+      return;
+    }
+    const p = this.pending;
+    this.pending = null;
+    if (p) this.fire(p);
   }
 
   fire(p) {

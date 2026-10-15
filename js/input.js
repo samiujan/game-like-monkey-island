@@ -41,6 +41,60 @@ const Input = (() => {
     return Game.scene.clamp(p.x, p.y);
   }
 
+  function segHitsRect(ax, ay, bx, by, r) {
+    const steps = 40;
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const x = ax + (bx - ax) * t, y = ay + (by - ay) * t;
+      if (x > r.x0 - 2 && x < r.x1 + 2 && y > r.y0 - 2 && y < r.y1 + 2) return true;
+    }
+    return false;
+  }
+
+  // If the straight line to the target crosses something solid, go round it in
+  // an L: step out sideways at the current depth, then along at the target's
+  // depth. Candidate sides are tried in order of preference (the side the
+  // target is on first) and the first one whose every leg is clear wins —
+  // otherwise the "detour" crosses the very prop it is avoiding.
+  function routeTo(ax, ay, bx, by) {
+    const scene = Game.scene;
+    const pad = 14;
+    for (const r of (scene.blocked || [])) {
+      if (!segHitsRect(ax, ay, bx, by, r)) continue;
+      const cands = [];
+      if (bx > r.x1) cands.push(r.x1 + pad);
+      if (bx < r.x0) cands.push(r.x0 - pad);
+      cands.push(r.x0 - pad, r.x1 + pad);
+      const fit = (pts) => {
+        let from = { x: ax, y: ay };
+        for (const p of pts) {
+          if (segHitsRect(from.x, from.y, p.x, p.y, r)) return false;
+          from = p;
+        }
+        return !segHitsRect(from.x, from.y, bx, by, r);
+      };
+      const clean = (pts) => pts.map((p) => {
+        const c = scene.clamp(p.x, p.y);
+        return scene.pushOut(c.x, c.y);
+      });
+      for (const gx of cands) {
+        const pts = [{ x: gx, y: ay }, { x: gx, y: by }];
+        if (fit(pts)) return clean(pts);
+      }
+      const gx = bx >= (r.x0 + r.x1) / 2 ? r.x1 + pad : r.x0 - pad;
+      return clean([{ x: gx, y: ay }, { x: gx, y: by }]);
+    }
+    return [];
+  }
+
+  // walk somewhere sensible: never inside a prop, around one if need be
+  function goTo(x, y, pending) {
+    const scene = Game.scene;
+    const safe = scene.pushOut(x, y);
+    const via = routeTo(Game.player.x, Game.player.y, safe.x, safe.y);
+    Game.player.walkTo(safe.x, safe.y, pending, via);
+  }
+
   return {
     get mx() { return mx; },
     get my() { return my; },
@@ -91,7 +145,7 @@ const Input = (() => {
           Game.held = null;
           const ex = h.ref;
           const c = Game.scene.clamp(ex.x + ex.w / 2, pw.y);
-          Game.player.walkTo(c.x, c.y, { type: 'exit', exit: ex });
+          goTo(c.x, c.y, { type: 'exit', exit: ex });
         } else if (h.type === 'hotspot') {
           const hs = h.ref;
           let pending = { type: 'look', hs };
@@ -107,9 +161,9 @@ const Input = (() => {
             tx += side * 58;
           } else if (hs.pickup) pending = { type: 'pickup', hs };
           const c = Game.scene.clamp(tx, pw.y);
-          Game.player.walkTo(c.x, c.y, pending);
+          goTo(c.x, c.y, pending);
         } else {
-          Game.player.walkTo(pw.x, pw.y, null);
+          goTo(pw.x, pw.y, null);
         }
       });
       window.addEventListener('keydown', (e) => {

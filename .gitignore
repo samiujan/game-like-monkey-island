@@ -10,3 +10,6 @@
 # Python dev server
 __pycache__/
 *.pyc
+
+# Sliced sprite frames — regenerable from assets/_sheets via tools/slice_sheet.py
+assets/_frames/
