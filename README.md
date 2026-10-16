@@ -221,6 +221,11 @@ numbers:
 python3 tools/slice_sheet.py assets/_sheets/gardener-c.png assets/_frames/gardener-c grid 4
 ```
 
+Grid mode slices by **column strip, not by cell**. On these sheets the figures
+are taller than the row pitch, so a cell crop lops their legs off at the row
+line; a strip is the full height of the sheet, so each figure comes out whole.
+Within a strip the rows are just the biggest *n* blobs, ordered top to bottom.
+
 Sheets differ: some carry a checkerboard, some a single flat colour, and the
 tolerance that suits one is wrong for another (the monkey's warm grey is close
 enough to its own fur that a small change collapses the sheet into one blob).
@@ -259,7 +264,19 @@ there is no animation state to keep in sync — and every pose in a set must sha
 a body type, or the dissolve looks like a costume change.
 
 `tools/build_sprites.py` then maps those frames onto the filenames the game
-loads, bottom-aligning each one and centring it on its own **centre of mass** —
+loads, laying each character's sets out at **one common scale**: the sheets draw
+the same character at sizes up to 20% apart, so every set is normalised against
+the smallest set's median height. Scaling down rather than up — the figures
+render around 130px, so there is resolution to spare, and shrinking cannot
+introduce the softness that enlarging would.
+
+A resting set of poses that are all the same figure standing is forced to a
+single height, so the character cannot change size as it fidgets. A set that
+deliberately mixes body types opts out and is scaled as a group, which keeps a
+seated monkey shorter than a standing one. Walk cycles are always group-scaled,
+which preserves the bob the artist drew.
+
+Each frame is bottom-aligned and centred on its own **centre of mass** —
 not its bounding box, which swings about with a held prop and makes the Prince
 jitter sideways as he walks. It deliberately does *not* rescale: within a sheet
 the generator already draws every figure at one scale, and forcing a common

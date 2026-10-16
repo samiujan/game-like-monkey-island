@@ -334,28 +334,30 @@ def slice_sheet(src, out_dir, min_px=400, gap=1, comp_px=900):
 
 
 def slice_grid(src, out_dir, cols, rows, min_px=1500):
-    """Slice a sheet that is already a regular grid.
+    """Slice a sheet that is laid out as a regular grid.
 
-    Component hunting is the right tool for a loose contact sheet, but a
-    tidy 4x4 wants nothing clever: take each cell, keep its largest opaque
-    blob (which drops printed frame numbers and stray specks), and crop to it.
+    By COLUMN strip, not by cell. On these sheets the figures are taller than
+    the row pitch, so a cell crop lops their legs off; a column strip is the
+    full height of the sheet, so each figure is found whole. Within a strip the
+    rows are then just the biggest `rows` blobs, ordered top to bottom, which
+    also drops printed frame numbers and stray specks.
     """
     im = Image.open(src).convert('RGBA')
     w, h = im.size
     mask = mask_from_alpha(im) if has_real_alpha(im) else key_checkerboard(im)
     os.makedirs(out_dir, exist_ok=True)
     made = []
-    cw, ch = w / cols, h / rows
-    for r in range(rows):
-        for c in range(cols):
-            x0, y0 = int(c * cw), int(r * ch)
-            x1, y1 = int((c + 1) * cw), int((r + 1) * ch)
-            sub = [[mask[y][x] for x in range(x0, x1)] for y in range(y0, y1)]
-            comps = components(sub, x1 - x0, y1 - y0, min_px)
-            if not comps:
-                continue
-            big = max(comps, key=lambda b: b[4])
-            crop = im.crop((x0 + big[0], y0 + big[1], x0 + big[2] + 1, y0 + big[3] + 1))
+    cw = w / cols
+    for c in range(cols):
+        x0, x1 = int(c * cw), int((c + 1) * cw)
+        sub = [[mask[y][x] for x in range(x0, x1)] for y in range(h)]
+        comps = components(sub, x1 - x0, h, min_px)
+        if not comps:
+            continue
+        keep = sorted(comps, key=lambda b: -b[4])[:rows]
+        keep.sort(key=lambda b: b[1])
+        for r, big in enumerate(keep):
+            crop = im.crop((x0 + big[0], big[1], x0 + big[2] + 1, big[3] + 1))
             crop = soften(crop)
             name = f'{os.path.basename(src)[:-4]}_r{r}c{c}.png'
             crop.save(os.path.join(out_dir, name), format='PNG')

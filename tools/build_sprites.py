@@ -100,12 +100,15 @@ def bbox_and_centroid(im):
     return bb, (sx / n, sy / n)
 
 
-def normalise(paths, pad=2):
-    """Bottom-align and centre each frame, keeping its native size.
+def normalise(paths, pad=2, scale=1.0, fit=None):
+    """Bottom-align and centre each frame, optionally rescaling it.
 
-    Deliberately no rescaling: within one sheet the generator already draws every
-    figure at the same scale, and forcing a common height would blow a seated
-    monkey up to the size of a walking one."""
+    `scale` multiplies every frame in the group equally, which keeps whatever
+    variation the artist drew (a walk cycle's bob, a seated monkey being
+    shorter). `fit` instead forces each frame to one height, for a set of poses
+    that are all the same figure standing and must not change size between
+    them — these sheets do draw some poses a few percent small.
+    """
     out = {}
     for p in paths:
         im = Image.open(p).convert('RGBA')
@@ -113,7 +116,15 @@ def normalise(paths, pad=2):
         if bb is None:
             raise SystemExit(f'{p} is empty')
         crop = im.crop(bb)
-        off = cx - bb[0]
+        factor = scale
+        if fit:
+            factor = fit / crop.size[1]
+        if abs(factor - 1.0) > 1e-3:
+            nw = max(1, round(crop.size[0] * factor))
+            nh = max(1, round(crop.size[1] * factor))
+            crop = crop.resize((nw, nh), Image.LANCZOS)
+            cx = cx * factor
+        off = cx - bb[0] * factor
         half = max(off, crop.size[0] - off) + pad
         w = int(round(half * 2))
         canvas = Image.new('RGBA', (w, crop.size[1]), (0, 0, 0, 0))
@@ -122,16 +133,67 @@ def normalise(paths, pad=2):
     return out
 
 
-def place(sheet, mapping, out_dir):
+def heights(paths):
+    hs = []
+    for p in paths:
+        bb, _ = bbox_and_centroid(Image.open(p).convert('RGBA'))
+        if bb:
+            hs.append(bb[3] - bb[1])
+    hs.sort()
+    return hs
+
+
+def median_height(paths):
+    hs = heights(paths)
+    return hs[len(hs) // 2] if hs else 0
+
+
+def place(sheet, mapping, out_dir, scale=1.0, fit=None):
     os.makedirs(out_dir, exist_ok=True)
     srcs = {dest: f'assets/_frames/{sheet}/{frame}.png' for dest, frame in mapping.items()}
     for dest, src in srcs.items():
         if not os.path.exists(src):
             raise SystemExit(f'missing source frame: {src}')
-    norm = normalise(list(srcs.values()))
+    norm = normalise(list(srcs.values()), scale=scale, fit=fit)
     for dest, src in srcs.items():
         norm[src].save(os.path.join(out_dir, dest + '.png'), format='PNG')
         print(f'  {dest:16s} <- {os.path.basename(src):20s} {norm[src].size[0]}x{norm[src].size[1]}')
+
+
+def character(out_dir, idle, walk=None, pose=None, same_body=True):
+    """Lay out one character's sprite sets at a common scale.
+
+    The sheets draw the same character at different sizes -- the gesture sheet
+    is about 20% larger than the walk sheet -- so each set is normalised against
+    the *smallest* set's median height. Scaling down rather than up: the figures
+    render at around 130px, so there is resolution to spare, and shrinking
+    cannot introduce the softness that enlarging would.
+    """
+    pi = [f'assets/_frames/{idle[0]}/{f}.png' for f in idle[1].values()]
+    meds = [median_height(pi)]
+    if walk:
+        pw = [f'assets/_frames/{walk[0]}/{f}.png' for f in walk[1].values()]
+        meds.append(median_height(pw))
+    if pose:
+        pp = [f'assets/_frames/{pose[0]}/{f}.png' for f in pose[1].values()]
+        meds.append(median_height(pp))
+    target = min(m for m in meds if m)
+
+    # The resting set is usually forced to one height, so a character cannot
+    # change size between poses that are all the same figure standing. A set
+    # that deliberately includes sitting poses opts out and is scaled as a
+    # group instead, which keeps a seated monkey shorter than a standing one.
+    if same_body:
+        place(idle[0], idle[1], out_dir, fit=target)
+    else:
+        pi2 = [f'assets/_frames/{idle[0]}/{f}.png' for f in idle[1].values()]
+        place(idle[0], idle[1], out_dir, scale=target / median_height(pi2))
+    if walk:
+        pw = [f'assets/_frames/{walk[0]}/{f}.png' for f in walk[1].values()]
+        place(walk[0], walk[1], out_dir, scale=target / median_height(pw))
+    if pose:
+        pp = [f'assets/_frames/{pose[0]}/{f}.png' for f in pose[1].values()]
+        place(pose[0], pose[1], out_dir, scale=target / median_height(pp))
 
 
 def main():
@@ -147,14 +209,13 @@ def main():
     # the previous gardener sheet left frames behind under the same names
     for old in __import__('glob').glob('assets/gardener/*.png'):
         __import__('os').remove(old)
-    place('gardener-a', GARDENER, 'assets/gardener')
-    place('gardener-c', GARDENER_WALK, 'assets/gardener')
+    character('assets/gardener', ('gardener-a', GARDENER), ('gardener-c', GARDENER_WALK))
     print('cook     -> assets/cook')
-    place('cook', COOK, 'assets/cook')
-    place('cook', COOK_WALK, 'assets/cook')
+    character('assets/cook', ('cook', COOK), ('cook', COOK_WALK))
     print('monkey   -> assets/monkey')
-    place('monkey', MONKEY, 'assets/monkey')
-    place('monkey', MONKEY_WALK, 'assets/monkey')
+    # the monkey's resting poses include sitting down, so they are NOT forced
+    # to a single height: a seated monkey is supposed to be shorter
+    character('assets/monkey', ('monkey', MONKEY), ('monkey', MONKEY_WALK), same_body=False)
     print('peacock  -> assets/peacock')
     place('peacock', PEACOCK, 'assets/peacock')
     place('peacock', PEACOCK_WALK, 'assets/peacock')
