@@ -168,7 +168,8 @@ mi6/
   js/main.js        — boot, title screen, game loop, scene transitions
   assets/           — sprite sheets (prince, gardener, cook, monkey, peacock)
   assets/_sheets/   — the AI contact sheets the sprites were cut from
-  tools/            — sheet slicing + cleanup scripts (see "Art pipeline" below)
+  tools/            — sheet slicing, cleanup + checking (see "Art pipeline")
+  SPRITE-PROMPTS.md — prompts that produce sheets the pipeline can use
   server.py         — optional no-cache static dev server (port 8000)
   CONTENT-GUIDE.md  — how to add characters, items, music, and scenes as *data*
 ```
