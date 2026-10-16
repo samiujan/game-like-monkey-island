@@ -23,9 +23,9 @@ const ActorSprites = {
     };
     const seq = (base, n) => Array.from({ length: n }, (_, i) => base + '-' + i);
 
-    load('gardener', ['g-pose-0', 'g-pose-1'], this.gardener.idle,
+    load('gardener', ['g-pose-0', 'g-pose-1', 'g-pose-2'], this.gardener.idle,
       () => { this.gardener.loaded = true; });
-    load('gardener', seq('g-walk', 5), this.gardener.walk, null);
+    load('gardener', seq('g-walk', 16), this.gardener.walk, null);
 
     load('cook', ['cook-idle', 'cook-idle-1', 'cook-idle-2'], this.cook.idle,
       () => { this.cook.loaded = true; });
@@ -61,10 +61,13 @@ const ActorSprites = {
 
 const Actors = (() => {
   // on-screen height at depth scale 1, plus each character's idle rhythm
+  // `face` is which way the WALK art looks natively (+1 right, -1 left), and
+  // `mirrorIdle` whether the resting poses should flip with it — front-facing
+  // idle art should not, or the character's gesture swaps hands.
   const KIND = {
-    gardener: { h: 134, hold: 7.5, fade: 0.40, bob: 0.5, shadow: 22 },
-    monkey: { h: 92, hold: 4.5, fade: 0.30, bob: 1.0, shadow: 15 },
-    peacock: { h: 92, hold: 5.0, fade: 0.45, bob: 0.5, shadow: 40 }
+    gardener: { h: 134, hold: 6.0, fade: 0.35, bob: 0.5, shadow: 22, face: -1, mirrorIdle: false },
+    monkey: { h: 92, hold: 4.5, fade: 0.30, bob: 1.0, shadow: 15, face: 1, mirrorIdle: false },
+    peacock: { h: 92, hold: 5.0, fade: 0.45, bob: 0.5, shadow: 40, face: 1, mirrorIdle: true }
   };
 
   const list = [];
@@ -201,6 +204,7 @@ const Actors = (() => {
       ctx.fill();
       ctx.restore();
 
+      const facing = a.facing * (a.cfg.face || 1);   // <0 means mirror
       const walk = sp.walk;
       if (a.state === 'walk' && walk && walk.length && walk[0]) {
         const img = walk[Math.floor(a.phase) % walk.length];
@@ -208,7 +212,7 @@ const Actors = (() => {
         const w = img.width * k, h = img.height * k;
         ctx.save();
         ctx.translate(a.x, a.y - Math.abs(Math.sin(a.phase * Math.PI)) * 1.1 * s);
-        if (a.facing < 0) ctx.scale(-1, 1);
+        if (facing < 0) ctx.scale(-1, 1);
         ctx.drawImage(img, -w / 2, -h, w, h);
         ctx.restore();
         return;
@@ -217,7 +221,7 @@ const Actors = (() => {
       // a monkey's variant picks its own pair out of the pooled idle frames
       if (a.kind === 'monkey' && a.variant) set = set.slice(a.variant * 2, a.variant * 2 + 2);
       drawIdle(ctx, set, a.x, a.y, k, t,
-        a.seed, a.hold, a.cfg.fade, a.cfg.bob, a.facing);
+        a.seed, a.hold, a.cfg.fade, a.cfg.bob, a.cfg.mirrorIdle ? facing : 1);
     }
   };
 })();

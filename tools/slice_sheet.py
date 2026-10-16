@@ -104,6 +104,21 @@ def key_checkerboard(im, tol=42):
     return [[not bg[y][x] for x in range(w)] for y in range(h)]
 
 
+def has_real_alpha(im):
+    """True when the sheet carries genuine transparency rather than a drawn
+    checkerboard. Nothing to key in that case: the alpha channel already says
+    exactly where the figures are."""
+    if im.mode != 'RGBA':
+        return False
+    return im.getchannel('A').getextrema()[0] < 250
+
+
+def mask_from_alpha(im, thresh=128):
+    w, h = im.size
+    a = im.getchannel('A').load()
+    return [[a[x, y] > thresh for x in range(w)] for y in range(h)]
+
+
 def runs(flags, gap=GAP):
     """Split a boolean list into [(start, end)] runs, ignoring short gaps."""
     out, start, blanks = [], None, 0
@@ -283,15 +298,18 @@ def order_rows(boxes, min_overlap=0.35):
     return [sorted(r, key=lambda b: b[0]) for r in rows]
 
 
-def slice_sheet(src, out_dir, min_px=400, gap=1):
+def slice_sheet(src, out_dir, min_px=400, gap=1, comp_px=900):
     im = Image.open(src).convert('RGB')
     w, h = im.size
-    mask = key_checkerboard(im)
+    if has_real_alpha(im):
+        mask = mask_from_alpha(im)
+    else:
+        mask = key_checkerboard(im)
     # Each figure is already its own component: clustering was an active
     # liability, because a long tail makes one figure's bounding box overlap
     # its neighbour's and the merge chain then swallows the whole sheet. The
     # generator's crosshair specks are dropped by the min_px floor instead.
-    boxes = components(mask, w, h, 900)
+    boxes = components(mask, w, h, comp_px)
 
     os.makedirs(out_dir, exist_ok=True)
     made = []
@@ -315,11 +333,46 @@ def slice_sheet(src, out_dir, min_px=400, gap=1):
     return made
 
 
+def slice_grid(src, out_dir, cols, rows, min_px=1500):
+    """Slice a sheet that is already a regular grid.
+
+    Component hunting is the right tool for a loose contact sheet, but a
+    tidy 4x4 wants nothing clever: take each cell, keep its largest opaque
+    blob (which drops printed frame numbers and stray specks), and crop to it.
+    """
+    im = Image.open(src).convert('RGBA')
+    w, h = im.size
+    mask = mask_from_alpha(im) if has_real_alpha(im) else key_checkerboard(im)
+    os.makedirs(out_dir, exist_ok=True)
+    made = []
+    cw, ch = w / cols, h / rows
+    for r in range(rows):
+        for c in range(cols):
+            x0, y0 = int(c * cw), int(r * ch)
+            x1, y1 = int((c + 1) * cw), int((r + 1) * ch)
+            sub = [[mask[y][x] for x in range(x0, x1)] for y in range(y0, y1)]
+            comps = components(sub, x1 - x0, y1 - y0, min_px)
+            if not comps:
+                continue
+            big = max(comps, key=lambda b: b[4])
+            crop = im.crop((x0 + big[0], y0 + big[1], x0 + big[2] + 1, y0 + big[3] + 1))
+            crop = soften(crop)
+            name = f'{os.path.basename(src)[:-4]}_r{r}c{c}.png'
+            crop.save(os.path.join(out_dir, name), format='PNG')
+            made.append((name, crop.size))
+    return made
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
         return 1
-    made = slice_sheet(sys.argv[1], sys.argv[2])
+    if len(sys.argv) > 4 and sys.argv[3] == 'grid':
+        made = slice_grid(sys.argv[1], sys.argv[2], int(sys.argv[4]),
+                          int(sys.argv[5]) if len(sys.argv) > 5 else int(sys.argv[4]))
+    else:
+        comp_px = int(sys.argv[3]) if len(sys.argv) > 3 else 900
+        made = slice_sheet(sys.argv[1], sys.argv[2], comp_px=comp_px)
     for name, size in made:
         print(f'  {name:24s} {size[0]}x{size[1]}')
     print(f'{len(made)} sprites -> {sys.argv[2]}')

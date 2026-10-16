@@ -28,8 +28,9 @@ PRINCE = {
 # the second (and third) frame of each set is the idle fidget the character
 # dissolves into and back out of, so they must share a body type
 GARDENER = {
-    'g-pose-0': 'gardener_r1c0',   # standing
-    'g-pose-1': 'gardener_r1c4',   # hand to the brow
+    'g-pose-0': 'gardener-a_r0c2',   # arms open, welcoming
+    'g-pose-1': 'gardener-a_r3c0',   # hand to the chin
+    'g-pose-2': 'gardener-a_r0c0',   # thumbs up
 }
 COOK = {
     'cook-idle': 'cook_r0c0',      # arms at his sides
@@ -45,9 +46,22 @@ MONKEY = {
     'monkey-2b': 'monkey_r3c4',
 }
 GARDENER_WALK = {
-    'g-walk-0': 'gardener_r0c0', 'g-walk-1': 'gardener_r0c1',
-    'g-walk-2': 'gardener_r0c2', 'g-walk-3': 'gardener_r0c3',
-    'g-walk-4': 'gardener_r0c4',
+    'g-walk-0': 'gardener-c_r0c0',
+    'g-walk-1': 'gardener-c_r0c1',
+    'g-walk-2': 'gardener-c_r0c2',
+    'g-walk-3': 'gardener-c_r0c3',
+    'g-walk-4': 'gardener-c_r1c0',
+    'g-walk-5': 'gardener-c_r1c1',
+    'g-walk-6': 'gardener-c_r1c2',
+    'g-walk-7': 'gardener-c_r1c3',
+    'g-walk-8': 'gardener-c_r2c0',
+    'g-walk-9': 'gardener-c_r2c1',
+    'g-walk-10': 'gardener-c_r2c2',
+    'g-walk-11': 'gardener-c_r2c3',
+    'g-walk-12': 'gardener-c_r3c0',
+    'g-walk-13': 'gardener-c_r3c1',
+    'g-walk-14': 'gardener-c_r3c2',
+    'g-walk-15': 'gardener-c_r3c3'
 }
 COOK_WALK = {
     'cook-walk-0': 'cook_r1c0', 'cook-walk-1': 'cook_r1c1',
@@ -130,8 +144,11 @@ def main():
     print(f'  {"pose-3":16s} <- mirrored prince_r1c2   {mirror.size[0]}x{mirror.size[1]}')
 
     print('gardener -> assets/gardener')
-    place('gardener', GARDENER, 'assets/gardener')
-    place('gardener', GARDENER_WALK, 'assets/gardener')
+    # the previous gardener sheet left frames behind under the same names
+    for old in __import__('glob').glob('assets/gardener/*.png'):
+        __import__('os').remove(old)
+    place('gardener-a', GARDENER, 'assets/gardener')
+    place('gardener-c', GARDENER_WALK, 'assets/gardener')
     print('cook     -> assets/cook')
     place('cook', COOK, 'assets/cook')
     place('cook', COOK_WALK, 'assets/cook')
@@ -142,7 +159,7 @@ def main():
     place('peacock', PEACOCK, 'assets/peacock')
     place('peacock', PEACOCK_WALK, 'assets/peacock')
 
-    for stale in ['g-pose-2', 'g-pose-3', 'g-pose-4', 'g-pose-5']:
+    for stale in ['g-pose-3', 'g-pose-4', 'g-pose-5']:
         p = f'assets/gardener/{stale}.png'
         if os.path.exists(p):
             os.remove(p)

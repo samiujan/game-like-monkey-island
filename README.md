@@ -211,6 +211,16 @@ python3 tools/slice_sheet.py assets/_sheets/cook.png assets/_frames/cook
 5. **Crops, keys and cleans** each one: the same fringe-removal and alpha
    softening as below.
 
+Some sheets arrive with **real transparency** instead of any drawn background —
+nothing to key, the alpha channel already says where the figures are, and the
+slicer takes that path automatically. A sheet that is already a tidy grid can be
+sliced by cell rather than by hunting components, which also drops printed frame
+numbers:
+
+```bash
+python3 tools/slice_sheet.py assets/_sheets/gardener-c.png assets/_frames/gardener-c grid 4
+```
+
 Sheets differ: some carry a checkerboard, some a single flat colour, and the
 tolerance that suits one is wrong for another (the monkey's warm grey is close
 enough to its own fur that a small change collapses the sheet into one blob).
