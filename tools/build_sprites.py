@@ -33,9 +33,12 @@ GARDENER = {
     'g-pose-2': 'gardener-a_r0c0',   # thumbs up
 }
 COOK = {
-    'cook-idle': 'cook_r0c0',      # arms at his sides
-    'cook-idle-1': 'cook_r0c5',    # one hand on his hip
-    'cook-idle-2': 'cook_r0c3',    # hands clasped
+    # the resting set is picked from the prop-free half of the sheet: the game
+    # cross-dissolves between these, so a bowl or a spoon in one pose and not
+    # the next would pop in and out of his hands
+    'cook-idle': 'cook_r1c3',      # hands clasped
+    'cook-idle-1': 'cook_r1c0',    # hand to his chin
+    'cook-idle-2': 'cook_r3c3',    # arms open
 }
 MONKEY = {
     'monkey-0': 'monkey_r2c0',    # sitting
@@ -64,9 +67,22 @@ GARDENER_WALK = {
     'g-walk-15': 'gardener-c_r3c3'
 }
 COOK_WALK = {
-    'cook-walk-0': 'cook_r1c0', 'cook-walk-1': 'cook_r1c1',
-    'cook-walk-2': 'cook_r1c2', 'cook-walk-3': 'cook_r1c3',
-    'cook-walk-4': 'cook_r1c4',
+    'cook-walk-0': 'cook-walk_r0c0',
+    'cook-walk-1': 'cook-walk_r0c1',
+    'cook-walk-2': 'cook-walk_r0c2',
+    'cook-walk-3': 'cook-walk_r0c3',
+    'cook-walk-4': 'cook-walk_r1c0',
+    'cook-walk-5': 'cook-walk_r1c1',
+    'cook-walk-6': 'cook-walk_r1c2',
+    'cook-walk-7': 'cook-walk_r1c3',
+    'cook-walk-8': 'cook-walk_r2c0',
+    'cook-walk-9': 'cook-walk_r2c1',
+    'cook-walk-10': 'cook-walk_r2c2',
+    'cook-walk-11': 'cook-walk_r2c3',
+    'cook-walk-12': 'cook-walk_r3c0',
+    'cook-walk-13': 'cook-walk_r3c1',
+    'cook-walk-14': 'cook-walk_r3c2',
+    'cook-walk-15': 'cook-walk_r3c3'
 }
 MONKEY_WALK = {
     'monkey-walk-0': 'monkey_r0c0', 'monkey-walk-1': 'monkey_r0c1',
@@ -211,7 +227,7 @@ def main():
         __import__('os').remove(old)
     character('assets/gardener', ('gardener-a', GARDENER), ('gardener-c', GARDENER_WALK))
     print('cook     -> assets/cook')
-    character('assets/cook', ('cook', COOK), ('cook', COOK_WALK))
+    character('assets/cook', ('cook', COOK), ('cook-walk', COOK_WALK))
     print('monkey   -> assets/monkey')
     # the monkey's resting poses include sitting down, so they are NOT forced
     # to a single height: a seated monkey is supposed to be shorter
