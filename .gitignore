@@ -13,3 +13,8 @@ __pycache__/
 
 # Sliced sprite frames — regenerable from assets/_sheets via tools/slice_sheet.py
 assets/_frames/
+
+# Unrelated local tooling (spritesage is a separate repo cloned in here)
+spritesage/
+.spritesage-*
+.uv-env.sh
