@@ -398,8 +398,13 @@ const Dialogue = (() => {
       ctx.font = '12px Georgia, serif';
       rects = [];
       const rowH = 24, gap = 6;
-      // options sit just above the speech bar so nothing is covered
-      let y = H - 64 - (cur.options.length - 1) * (rowH + gap);
+      // Options stack directly on top of the speech bar. This used to be a
+      // fixed offset from the bottom of the screen, which was fine while the
+      // bar held one line; a sequence of four lines grew the bar straight
+      // through the options.
+      const blockH = cur.options.length * rowH + (cur.options.length - 1) * gap;
+      const barTop = Speech.active ? Speech.top : H - 8;
+      let y = Math.max(8, barTop - 10 - blockH);
       cur.options.forEach((o, i) => {
         const label = (i + 1) + '.  ' + o.text;
         const w = ctx.measureText(label).width + 24;

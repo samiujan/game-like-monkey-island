@@ -58,7 +58,10 @@ accept it, with an arrow when that thing is an exit. Clicking the wrong thing on
 the wrong thing is allowed, and answered.
 
 A whole exchange is printed at once rather than a line at a time, so you can
-read a three-line mime in one go.
+read a three-line mime in one go. The bar grows to fit, and the dialogue
+options stack directly on top of it — they used to sit at a fixed offset from
+the bottom of the screen, which a four-line sequence grew straight through. The
+bar also stops short of the satchel in the bottom-right corner.
 
 The cursor tells you what will happen:
 

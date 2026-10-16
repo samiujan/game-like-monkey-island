@@ -13,7 +13,16 @@ function rr(ctx, x, y, w, h, r) {
 // Lines render as "Speaker: what they say" on a translucent strip along the
 // bottom edge, so nothing in the scene is ever covered.
 const Speech = (() => {
-  let current = null; // {speaker, lines, t, dur}
+  let current = null;  // {speaker, lines, t, dur}
+  let top = 0;         // y of the bar's top edge, for whatever stacks above it
+
+  // The satchel lives in the bottom-right corner, so the bar has to stop short
+  // of it or the two draw over each other.
+  function barWidth() {
+    const n = (typeof Inventory !== 'undefined' && Inventory.list) ? Inventory.list.length : 0;
+    const bagLeft = n ? (W - 14 - 48 - (n - 1) * 56) - 8 : W;
+    return Math.min(W - BAR_MARGIN * 2, bagLeft - BAR_MARGIN) - PAD_X * 2;
+  }
 
   const FONT = '12px Georgia, serif';
   const LH = 16, PAD_X = 12, BAR_MARGIN = 8;
@@ -24,7 +33,7 @@ const Speech = (() => {
   function barGeometry(ctx, speaker, lines) {
     ctx.font = FONT;
     const headW = speaker ? ctx.measureText(speaker + ':  ').width : 0;
-    const maxW = W - BAR_MARGIN * 2 - PAD_X * 2;
+    const maxW = barWidth();
     const out = [];
     lines.forEach((text, li) => {
       const firstMax = li === 0 ? maxW - headW : maxW;
@@ -54,11 +63,15 @@ const Speech = (() => {
       const chars = all.reduce((n, l) => n + String(l).length, 0);
       current = { speaker: speaker || 'Prince', lines: all, t: 0, dur: 2.2 + chars * 0.045 };
     },
-    clear() { current = null; },
+    clear() { current = null; top = 0; },
     // kept for callers that used to advance the queue
     next() { current = null; },
     // what is on screen right now (used by the tests, handy when debugging)
     get lines() { return current ? current.lines : []; },
+    // where the bar's top edge sits, so the dialogue options can sit above it.
+    // Falls back to the bottom margin until the bar has been laid out once.
+    get top() { return (current && top) ? top : H - BAR_MARGIN; },
+    get height() { return current ? (H - BAR_MARGIN - top) : 0; },
     get active() { return !!current; },
     update(dt) {
       if (!current) return;
@@ -75,6 +88,7 @@ const Speech = (() => {
       ctx.save();
       ctx.font = FONT;
       const { lines, headW, bh, by } = barGeometry(ctx, c.speaker, c.lines);
+      top = by;
 
       // translucent bar
       ctx.globalAlpha = alpha * 0.85;

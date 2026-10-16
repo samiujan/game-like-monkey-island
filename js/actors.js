@@ -99,6 +99,9 @@ const Actors = (() => {
     a.hot = hot;
     a.prop = prop;
     if (hot) hot.actor = a;
+    // place the hotspot now rather than waiting for the first update, or it
+    // spends a frame sitting at the origin in the corner of the scene
+    sync(a);
     return a;
   };
 
